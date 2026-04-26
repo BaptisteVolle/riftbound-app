@@ -40,7 +40,7 @@ export default function ScanScreen() {
 
   const scanControls = (
     <View style={styles.controls}>
-      <Button label="SCAN" tone="pink" onPress={handleScan} />
+      <Button label="SCAN" tone="orange" onPress={handleScan} />
       <TextInput
         autoCapitalize="words"
         onChangeText={setName}
@@ -73,7 +73,7 @@ export default function ScanScreen() {
       <Button
         disabled={!canSearchCardmarket}
         label="SEARCH CARDMARKET"
-        tone="yellow"
+        tone="gold"
         onPress={handleSearchCardmarket}
       />
     </View>
@@ -112,50 +112,50 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111',
+    backgroundColor: '#071527',
   },
   camera: {
     flex: 1,
   },
   bottomPanel: {
     position: 'absolute',
-    right: 24,
-    bottom: 32,
-    left: 24,
-    borderWidth: 4,
-    borderColor: '#111',
-    borderRadius: 20,
-    padding: 14,
-    backgroundColor: '#7EE7FF',
+    right: 18,
+    bottom: 24,
+    left: 18,
+    borderWidth: 2,
+    borderColor: '#F8F0DC',
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: 'rgba(7, 21, 39, 0.94)',
   },
   controls: {
-    gap: 12,
+    gap: 10,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   input: {
-    borderWidth: 4,
-    borderColor: '#111',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#fff',
-    color: '#111',
-    fontSize: 17,
+    borderWidth: 2,
+    borderColor: '#F2B84B',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8F0DC',
+    color: '#071527',
+    fontSize: 16,
     fontWeight: '800',
   },
   compactInput: {
     flex: 1,
   },
   error: {
-    borderWidth: 3,
-    borderColor: '#111',
+    borderWidth: 2,
+    borderColor: '#F8F0DC',
     borderRadius: 12,
     padding: 10,
-    backgroundColor: '#FF6B9E',
-    color: '#111',
+    backgroundColor: '#E66A2C',
+    color: '#F8F0DC',
     fontSize: 14,
     fontWeight: '800',
     textAlign: 'center',
@@ -165,10 +165,10 @@ const styles = StyleSheet.create({
     gap: 18,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#7EE7FF',
+    backgroundColor: '#071527',
   },
   message: {
-    color: '#111',
+    color: '#F8F0DC',
     fontSize: 22,
     fontWeight: '900',
     textAlign: 'center',

@@ -4,11 +4,11 @@ type ButtonProps = {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
-  tone?: 'yellow' | 'pink' | 'blue' | 'dark';
+  tone?: 'gold' | 'orange' | 'blue' | 'dark' | 'yellow' | 'pink';
   style?: ViewStyle;
 };
 
-export function Button({ label, onPress, disabled, tone = 'yellow', style }: ButtonProps) {
+export function Button({ label, onPress, disabled, tone = 'gold', style }: ButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -30,43 +30,49 @@ export function Button({ label, onPress, disabled, tone = 'yellow', style }: But
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#111',
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    shadowColor: '#111',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 1,
+    borderWidth: 2,
+    borderColor: '#F8F0DC',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#071527',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
     shadowRadius: 0,
   },
   label: {
-    color: '#111',
-    fontSize: 18,
+    color: '#071527',
+    fontSize: 16,
     fontWeight: '900',
     textAlign: 'center',
   },
   lightLabel: {
     color: '#fff',
   },
+  gold: {
+    backgroundColor: '#F2B84B',
+  },
+  orange: {
+    backgroundColor: '#E66A2C',
+  },
   yellow: {
-    backgroundColor: '#FFD84D',
+    backgroundColor: '#F2B84B',
   },
   pink: {
-    backgroundColor: '#FF6B9E',
+    backgroundColor: '#E66A2C',
   },
   blue: {
-    backgroundColor: '#7EE7FF',
+    backgroundColor: '#1F6F9F',
   },
   dark: {
-    backgroundColor: '#111',
+    backgroundColor: '#071527',
   },
   disabled: {
-    backgroundColor: '#ddd',
-    opacity: 0.65,
+    backgroundColor: '#6F7D8C',
+    opacity: 0.75,
   },
   pressed: {
-    transform: [{ translateX: 3 }, { translateY: 3 }],
-    shadowOffset: { width: 3, height: 3 },
+    transform: [{ translateY: 2 }],
+    shadowOffset: { width: 0, height: 2 },
   },
 });
