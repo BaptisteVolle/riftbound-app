@@ -12,8 +12,9 @@ export default function ScanScreen() {
   const [setCode, setSetCode] = useState('');
   const [number, setNumber] = useState('');
   const [error, setError] = useState('');
+  const canSearchCardmarket = Boolean(name.trim() && setCode.trim() && number.trim());
 
-  function handleUseSample() {
+  function handleScan() {
     setName('Hextech Ray');
     setSetCode('OGN');
     setNumber('009');
@@ -21,6 +22,11 @@ export default function ScanScreen() {
   }
 
   function handleSearchCardmarket() {
+    if (!canSearchCardmarket) {
+      setError('Scan a card first so name, set, and number are filled.');
+      return;
+    }
+
     const url = buildCardmarketSearchUrl({ name, setCode, number });
 
     if (!url) {
@@ -34,6 +40,7 @@ export default function ScanScreen() {
 
   const scanControls = (
     <View style={styles.controls}>
+      <Button label="SCAN" tone="pink" onPress={handleScan} />
       <TextInput
         autoCapitalize="words"
         onChangeText={setName}
@@ -63,8 +70,12 @@ export default function ScanScreen() {
         />
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button label="SEARCH CARDMARKET" tone="yellow" onPress={handleSearchCardmarket} />
-      <Button label="USE HEXTECH SAMPLE" tone="pink" onPress={handleUseSample} />
+      <Button
+        disabled={!canSearchCardmarket}
+        label="SEARCH CARDMARKET"
+        tone="yellow"
+        onPress={handleSearchCardmarket}
+      />
     </View>
   );
 
@@ -91,7 +102,7 @@ export default function ScanScreen() {
     <View style={styles.container}>
       <CameraView style={styles.camera} facing="back" />
       <ScannerOverlay />
-      <View style={styles.actions}>
+      <View style={styles.bottomPanel}>
         {scanControls}
       </View>
     </View>
@@ -106,11 +117,16 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  actions: {
+  bottomPanel: {
     position: 'absolute',
     right: 24,
     bottom: 32,
     left: 24,
+    borderWidth: 4,
+    borderColor: '#111',
+    borderRadius: 20,
+    padding: 14,
+    backgroundColor: '#7EE7FF',
   },
   controls: {
     gap: 12,
