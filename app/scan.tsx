@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { router } from 'expo-router';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '../src/components/Button';
 import { ScannerOverlay } from '../src/components/ScannerOverlay';
-import { findCardFromScan } from '../src/features/cards/cards.service';
-import { simulateScan } from '../src/features/scan/scan.service';
+import { buildCardmarketSearchUrl } from '../src/features/cards/cards.service';
 
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -15,24 +13,23 @@ export default function ScanScreen() {
   const [number, setNumber] = useState('');
   const [error, setError] = useState('');
 
-  function handleSimulateScan() {
-    const card = simulateScan();
-
-    if (card) {
-      router.push(`/card/${card.id}`);
-    }
+  function handleUseSample() {
+    setName('Hextech Ray');
+    setSetCode('OGN');
+    setNumber('009');
+    setError('');
   }
 
-  function handleSearchFromScan() {
-    const card = findCardFromScan({ name, setCode, number });
+  function handleSearchCardmarket() {
+    const url = buildCardmarketSearchUrl({ name, setCode, number });
 
-    if (card) {
-      setError('');
-      router.push(`/card/${card.id}`);
+    if (!url) {
+      setError('Enter at least a card name, set, or number.');
       return;
     }
 
-    setError('No local match yet. Try set + number, like OGN 009.');
+    setError('');
+    Linking.openURL(url);
   }
 
   const scanControls = (
@@ -66,8 +63,8 @@ export default function ScanScreen() {
         />
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button label="SEARCH LOCAL MATCH" tone="yellow" onPress={handleSearchFromScan} />
-      <Button label="SIMULATE JINX SCAN" tone="pink" onPress={handleSimulateScan} />
+      <Button label="SEARCH CARDMARKET" tone="yellow" onPress={handleSearchCardmarket} />
+      <Button label="USE HEXTECH SAMPLE" tone="pink" onPress={handleUseSample} />
     </View>
   );
 

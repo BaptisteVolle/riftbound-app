@@ -72,3 +72,17 @@ export function buildCardmarketUrl(card: RiftboundCard) {
 
   return `${CARDMARKET_BASE_URL}/en/Riftbound/Cards/${slugifyCardmarketName(card.name)}`;
 }
+
+export function buildCardmarketSearchUrl(input: CardScanInput) {
+  const paddedNumber = input.number ? input.number.padStart(3, '0') : '';
+  const collectorCode = [input.setCode?.toUpperCase(), paddedNumber].filter(Boolean).join('-');
+  const searchQuery = [input.name, collectorCode].filter(Boolean).join(' ').trim();
+
+  if (!searchQuery) {
+    return undefined;
+  }
+
+  return `${CARDMARKET_BASE_URL}/en/Riftbound/Products/Search?searchString=${encodeURIComponent(
+    searchQuery,
+  )}`;
+}
