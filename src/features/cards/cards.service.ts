@@ -45,11 +45,22 @@ export function searchCards(query: string) {
 export function findCardFromScan(input: CardScanInput): RiftboundCard | undefined {
   const normalizedName = input.name ? normalize(input.name) : '';
   const normalizedSetCode = input.setCode?.toUpperCase();
+  const normalizedNumber = input.number?.padStart(3, '0');
+
+  if (normalizedSetCode && normalizedNumber) {
+    const exactCollectorMatch = cards.find(
+      (card) => card.setCode === normalizedSetCode && card.number === normalizedNumber,
+    );
+
+    if (exactCollectorMatch) {
+      return exactCollectorMatch;
+    }
+  }
 
   return cards.find((card) => {
     const nameMatches = normalizedName ? normalize(card.name).includes(normalizedName) : true;
     const setMatches = normalizedSetCode ? card.setCode === normalizedSetCode : true;
-    const numberMatches = input.number ? card.number === input.number : true;
+    const numberMatches = normalizedNumber ? card.number === normalizedNumber : true;
     return nameMatches && setMatches && numberMatches;
   });
 }

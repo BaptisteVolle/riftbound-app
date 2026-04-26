@@ -2,6 +2,17 @@ import { RiftboundCard } from './cards.types';
 
 export const cards: RiftboundCard[] = [
   {
+    id: 'ogn-hextech-ray',
+    name: 'Hextech Ray',
+    set: 'Origins',
+    setCode: 'OGN',
+    number: '009',
+    color: 'Fury',
+    cost: 1,
+    type: 'Spell',
+    cardmarketPath: '/en/Riftbound/Cards/Hextech-Ray',
+  },
+  {
     id: 'ogn-jinx-loose-cannon',
     name: 'Jinx, Loose Cannon',
     set: 'Origins',
