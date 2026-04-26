@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
@@ -6,16 +6,12 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>RIFTBOUND TOOLKIT</Text>
 
-      <Link asChild href="/scan">
-        <Pressable style={[styles.button, styles.yellow]}>
-          <Text style={styles.buttonText}>SCAN CARD</Text>
-        </Pressable>
-      </Link>
-      <Link asChild href="/search">
-        <Pressable style={[styles.button, styles.pink]}>
-          <Text style={styles.buttonText}>SEARCH</Text>
-        </Pressable>
-      </Link>
+      <Pressable onPress={() => router.push('/scan')} style={[styles.button, styles.yellow]}>
+        <Text style={styles.buttonText}>SCAN CARD</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/search')} style={[styles.button, styles.pink]}>
+        <Text style={styles.buttonText}>SEARCH</Text>
+      </Pressable>
       <View style={[styles.button, styles.disabled]}>
         <Text style={styles.disabledText}>COLLECTION</Text>
       </View>

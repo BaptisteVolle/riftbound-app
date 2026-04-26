@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatCardMeta } from '../lib/utils';
@@ -10,17 +10,15 @@ type CardPreviewProps = {
 
 export function CardPreview({ card }: CardPreviewProps) {
   return (
-    <Link asChild href={`/card/${card.id}`}>
-      <Pressable style={styles.card}>
-        <Text style={styles.name}>{card.name}</Text>
-        <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
-        <View style={styles.row}>
-          <Text style={styles.pill}>{card.set}</Text>
-          <Text style={styles.pill}>{card.color}</Text>
-          <Text style={styles.pill}>Cost {card.cost}</Text>
-        </View>
-      </Pressable>
-    </Link>
+    <Pressable onPress={() => router.push(`/card/${card.id}`)} style={styles.card}>
+      <Text style={styles.name}>{card.name}</Text>
+      <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
+      <View style={styles.row}>
+        <Text style={styles.pill}>{card.set}</Text>
+        <Text style={styles.pill}>{card.color}</Text>
+        <Text style={styles.pill}>Cost {card.cost}</Text>
+      </View>
+    </Pressable>
   );
 }
 
