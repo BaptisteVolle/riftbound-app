@@ -1,19 +1,39 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { CardPreview } from '../src/components/CardPreview';
+import { searchCards } from '../src/features/cards/cards.service';
 
 export default function SearchScreen() {
+  const [query, setQuery] = useState('');
+  const results = useMemo(() => searchCards(query), [query]);
+
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>SEARCH CARDS</Text>
-      <Text style={styles.body}>Manual search comes next.</Text>
-    </View>
+      <TextInput
+        autoCapitalize="none"
+        autoCorrect={false}
+        onChangeText={setQuery}
+        placeholder="Jinx, OGN, 143..."
+        placeholderTextColor="#555"
+        style={styles.input}
+        value={query}
+      />
+      <View style={styles.results}>
+        {results.map((card) => (
+          <CardPreview card={card} key={card.id} />
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
+    gap: 18,
     padding: 24,
+    paddingBottom: 42,
     backgroundColor: '#FFD84D',
   },
   title: {
@@ -22,11 +42,22 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
   },
-  body: {
-    marginTop: 12,
+  input: {
+    borderWidth: 4,
+    borderColor: '#111',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
     color: '#111',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontSize: 19,
+    fontWeight: '900',
+    shadowColor: '#111',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+  results: {
+    gap: 16,
   },
 });

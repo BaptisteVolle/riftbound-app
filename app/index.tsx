@@ -6,10 +6,10 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>RIFTBOUND TOOLKIT</Text>
 
-      <Link href="/scan" style={[styles.button, styles.primary]}>
+      <Link href="/scan" style={[styles.button, styles.yellow]}>
         SCAN CARD
       </Link>
-      <Link href="/search" style={[styles.button, styles.secondary]}>
+      <Link href="/search" style={[styles.button, styles.pink]}>
         SEARCH
       </Link>
       <View style={[styles.button, styles.disabled]}>
@@ -48,10 +48,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 0,
   },
-  primary: {
+  yellow: {
     backgroundColor: '#FFD84D',
   },
-  secondary: {
+  pink: {
     backgroundColor: '#FF6B9E',
   },
   disabled: {

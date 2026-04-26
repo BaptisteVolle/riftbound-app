@@ -1,0 +1,69 @@
+import { Link } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { formatCardMeta } from '../lib/utils';
+import { RiftboundCard } from '../features/cards/cards.types';
+
+type CardPreviewProps = {
+  card: RiftboundCard;
+};
+
+export function CardPreview({ card }: CardPreviewProps) {
+  return (
+    <Link href={`/card/${card.id}`} style={styles.link}>
+      <View style={styles.card}>
+        <Text style={styles.name}>{card.name}</Text>
+        <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
+        <View style={styles.row}>
+          <Text style={styles.pill}>{card.set}</Text>
+          <Text style={styles.pill}>{card.color}</Text>
+          <Text style={styles.pill}>Cost {card.cost}</Text>
+        </View>
+      </View>
+    </Link>
+  );
+}
+
+const styles = StyleSheet.create({
+  link: {
+    width: '100%',
+  },
+  card: {
+    gap: 10,
+    borderWidth: 4,
+    borderColor: '#111',
+    borderRadius: 18,
+    padding: 16,
+    backgroundColor: '#fff',
+    shadowColor: '#111',
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+  name: {
+    color: '#111',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  meta: {
+    color: '#111',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  pill: {
+    borderWidth: 3,
+    borderColor: '#111',
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFD84D',
+    color: '#111',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+});
