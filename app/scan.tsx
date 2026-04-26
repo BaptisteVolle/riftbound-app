@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     borderColor: '#F8F0DC',
     borderRadius: 16,
     padding: 12,
-    backgroundColor: 'rgba(7, 21, 39, 0.94)',
+    backgroundColor: 'rgba(9, 42, 76, 0.96)',
   },
   controls: {
     gap: 10,
