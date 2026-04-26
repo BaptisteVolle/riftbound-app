@@ -1,16 +1,20 @@
 import { Link } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>RIFTBOUND TOOLKIT</Text>
 
-      <Link href="/scan" style={[styles.button, styles.yellow]}>
-        SCAN CARD
+      <Link asChild href="/scan">
+        <Pressable style={[styles.button, styles.yellow]}>
+          <Text style={styles.buttonText}>SCAN CARD</Text>
+        </Pressable>
       </Link>
-      <Link href="/search" style={[styles.button, styles.pink]}>
-        SEARCH
+      <Link asChild href="/search">
+        <Pressable style={[styles.button, styles.pink]}>
+          <Text style={styles.buttonText}>SEARCH</Text>
+        </Pressable>
       </Link>
       <View style={[styles.button, styles.disabled]}>
         <Text style={styles.disabledText}>COLLECTION</Text>
@@ -39,10 +43,6 @@ const styles = StyleSheet.create({
     borderColor: '#111',
     borderRadius: 18,
     paddingVertical: 18,
-    color: '#111',
-    fontSize: 20,
-    fontWeight: '900',
-    textAlign: 'center',
     shadowColor: '#111',
     shadowOffset: { width: 6, height: 6 },
     shadowOpacity: 1,
@@ -63,5 +63,11 @@ const styles = StyleSheet.create({
     color: '#111',
     fontSize: 20,
     fontWeight: '900',
+  },
+  buttonText: {
+    color: '#111',
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
   },
 });

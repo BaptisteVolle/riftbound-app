@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatCardMeta } from '../lib/utils';
 import { RiftboundCard } from '../features/cards/cards.types';
@@ -10,8 +10,8 @@ type CardPreviewProps = {
 
 export function CardPreview({ card }: CardPreviewProps) {
   return (
-    <Link href={`/card/${card.id}`} style={styles.link}>
-      <View style={styles.card}>
+    <Link asChild href={`/card/${card.id}`}>
+      <Pressable style={styles.card}>
         <Text style={styles.name}>{card.name}</Text>
         <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
         <View style={styles.row}>
@@ -19,17 +19,15 @@ export function CardPreview({ card }: CardPreviewProps) {
           <Text style={styles.pill}>{card.color}</Text>
           <Text style={styles.pill}>Cost {card.cost}</Text>
         </View>
-      </View>
+      </Pressable>
     </Link>
   );
 }
 
 const styles = StyleSheet.create({
-  link: {
-    width: '100%',
-  },
   card: {
     gap: 10,
+    width: '100%',
     borderWidth: 4,
     borderColor: '#111',
     borderRadius: 18,
