@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Clipboard from 'expo-clipboard';
 import {
   KeyboardAvoidingView,
   Linking,
@@ -24,18 +25,24 @@ export default function ScanScreen() {
   const [error, setError] = useState('');
   const [detectedCard, setDetectedCard] = useState<RiftboundCard | undefined>();
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'found' | 'not-found'>('idle');
+  const [lastUrl, setLastUrl] = useState('');
+  const [lastUrlMode, setLastUrlMode] = useState('');
   const canSearchCardmarket = Boolean(name.trim());
 
   async function handleScan() {
     if (!name.trim() && !setCode.trim() && !number.trim()) {
       setScanStatus('not-found');
       setDetectedCard(undefined);
+      setLastUrl('');
+      setLastUrlMode('');
       setError('Camera OCR is not enabled yet. Enter text first, then validate with RiftCodex.');
       return;
     }
 
     setScanStatus('scanning');
     setDetectedCard(undefined);
+    setLastUrl('');
+    setLastUrlMode('');
     setError('');
 
     try {
@@ -52,6 +59,9 @@ export default function ScanScreen() {
       setNumber(card.number);
       setDetectedCard(card);
       setScanStatus('found');
+      const directUrl = buildCardmarketUrl(card);
+      setLastUrl(directUrl);
+      setLastUrlMode('RiftCodex found - direct Cardmarket URL');
     } catch {
       setScanStatus('not-found');
       setError('RiftCodex lookup failed. Check your connection and try again.');
@@ -74,7 +84,29 @@ export default function ScanScreen() {
     }
 
     setError('');
+    setLastUrl(url);
+    setLastUrlMode(
+      detectedCard ? 'RiftCodex found - direct Cardmarket URL' : 'RiftCodex not found - name search',
+    );
     Linking.openURL(url);
+  }
+
+  async function handleCopyUrl() {
+    const url =
+      lastUrl ||
+      (detectedCard ? buildCardmarketUrl(detectedCard) : buildCardmarketSearchUrl({ name, setCode, number }));
+
+    if (!url) {
+      setError('No Cardmarket URL to copy yet.');
+      return;
+    }
+
+    await Clipboard.setStringAsync(url);
+    setLastUrl(url);
+    setLastUrlMode(
+      detectedCard ? 'RiftCodex found - direct Cardmarket URL' : 'RiftCodex not found - name search',
+    );
+    setError('URL copied.');
   }
 
   const scanControls = (
@@ -90,6 +122,14 @@ export default function ScanScreen() {
           <Text style={styles.foundTitle}>CARD FOUND</Text>
           <Text style={styles.foundText}>
             {detectedCard.name} - {detectedCard.setCode} {detectedCard.number}
+          </Text>
+        </View>
+      ) : null}
+      {lastUrlMode ? (
+        <View style={styles.debugBox}>
+          <Text style={styles.debugTitle}>{lastUrlMode}</Text>
+          <Text numberOfLines={2} style={styles.debugText}>
+            {lastUrl}
           </Text>
         </View>
       ) : null}
@@ -132,6 +172,12 @@ export default function ScanScreen() {
         label="SEARCH CARDMARKET"
         tone="gold"
         onPress={handleSearchCardmarket}
+      />
+      <Button
+        disabled={!canSearchCardmarket && !lastUrl}
+        label="COPY URL"
+        tone="blue"
+        onPress={handleCopyUrl}
       />
     </View>
   );
@@ -238,6 +284,26 @@ const styles = StyleSheet.create({
     color: '#F8F0DC',
     fontSize: 14,
     fontWeight: '800',
+    textAlign: 'center',
+  },
+  debugBox: {
+    borderWidth: 2,
+    borderColor: '#F8F0DC',
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: '#092A4C',
+  },
+  debugTitle: {
+    color: '#F2B84B',
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  debugText: {
+    marginTop: 4,
+    color: '#F8F0DC',
+    fontSize: 12,
+    fontWeight: '700',
     textAlign: 'center',
   },
   centered: {
