@@ -1,16 +1,65 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { CardPreview } from '../src/components/CardPreview';
-import { searchCards } from '../src/features/cards/cards.service';
+import { getAllCards } from '../src/features/cards/cards.service';
+import { RiftboundCard } from '../src/features/cards/cards.types';
+import { fetchRiftCodexCards } from '../src/features/riftcodex/riftcodex.service';
 
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
-  const results = useMemo(() => searchCards(query), [query]);
+  const [cards, setCards] = useState<RiftboundCard[]>(getAllCards());
+  const [sourceLabel, setSourceLabel] = useState('Local fallback');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchRiftCodexCards()
+      .then((riftCodexCards) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setCards(riftCodexCards);
+        setSourceLabel(`RiftCodex - ${riftCodexCards.length} cards`);
+        setError('');
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setCards(getAllCards());
+        setSourceLabel('Local fallback');
+        setError('RiftCodex unavailable, showing local cards.');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const results = useMemo(() => {
+    const normalizedQuery = query.toLowerCase().trim();
+
+    if (!normalizedQuery) {
+      return cards.slice(0, 40);
+    }
+
+    return cards
+      .filter((card) =>
+        `${card.name} ${card.set} ${card.setCode} ${card.number} ${card.color} ${card.type}`
+          .toLowerCase()
+          .includes(normalizedQuery),
+      )
+      .slice(0, 40);
+  }, [cards, query]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>SEARCH CARDS</Text>
+      <Text style={styles.source}>{sourceLabel}</Text>
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
@@ -20,6 +69,7 @@ export default function SearchScreen() {
         style={styles.input}
         value={query}
       />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.results}>
         {results.map((card) => (
           <CardPreview card={card} key={card.id} />
@@ -56,6 +106,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 6, height: 6 },
     shadowOpacity: 1,
     shadowRadius: 0,
+  },
+  source: {
+    color: '#111',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  error: {
+    borderWidth: 3,
+    borderColor: '#111',
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: '#FF6B9E',
+    color: '#111',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   results: {
     gap: 16,

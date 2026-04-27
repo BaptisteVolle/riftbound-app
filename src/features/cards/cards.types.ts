@@ -8,6 +8,8 @@ export type RiftboundCard = {
   cost: number;
   type: string;
   cardmarketPath?: string;
+  imageUrl?: string;
+  externalId?: string;
 };
 
 export type CardScanInput = {

@@ -1,13 +1,42 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../src/components/Button';
-import { buildCardmarketUrl, getCardById } from '../../src/features/cards/cards.service';
+import {
+  buildCardmarketSearchUrl,
+  buildCardmarketUrl,
+  getCardById,
+} from '../../src/features/cards/cards.service';
 import { formatCardMeta } from '../../src/lib/utils';
 
 export default function CardDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const card = id ? getCardById(id) : undefined;
+  const params = useLocalSearchParams<{
+    id: string;
+    name?: string;
+    set?: string;
+    setCode?: string;
+    number?: string;
+    color?: string;
+    cost?: string;
+    type?: string;
+    imageUrl?: string;
+  }>();
+  const localCard = params.id ? getCardById(params.id) : undefined;
+  const card =
+    localCard ??
+    (params.name && params.setCode && params.number
+      ? {
+          id: params.id,
+          name: params.name,
+          set: params.set ?? params.setCode,
+          setCode: params.setCode,
+          number: params.number,
+          color: params.color ?? 'Unknown',
+          cost: Number(params.cost ?? 0),
+          type: params.type ?? 'Card',
+          imageUrl: params.imageUrl || undefined,
+        }
+      : undefined);
 
   if (!card) {
     return (
@@ -17,10 +46,12 @@ export default function CardDetailScreen() {
     );
   }
 
-  const cardmarketUrl = buildCardmarketUrl(card);
+  const cardmarketUrl =
+    localCard ? buildCardmarketUrl(localCard) : buildCardmarketSearchUrl(card) ?? '';
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {card.imageUrl ? <Image source={{ uri: card.imageUrl }} style={styles.image} /> : null}
       <View style={styles.hero}>
         <Text style={styles.name}>{card.name}</Text>
         <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
@@ -77,6 +108,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 8, height: 8 },
     shadowOpacity: 1,
     shadowRadius: 0,
+  },
+  image: {
+    width: '100%',
+    aspectRatio: 0.716,
+    borderWidth: 4,
+    borderColor: '#111',
+    borderRadius: 18,
+    backgroundColor: '#fff',
   },
   name: {
     color: '#111',
