@@ -24,6 +24,8 @@ export type RiftCodexCard = {
   metadata?: {
     alternate_art?: boolean;
     clean_name?: string;
+    overnumbered?: boolean;
+    signature?: boolean;
   };
 };
 

@@ -41,11 +41,75 @@ export function normalizeCollectorNumber(value: string) {
 function getCardmarketPath(name: string) {
   const slug = name
     .replace(/\s+\(Alternate Art\)$/i, '')
+    .replace(/\s+\(Overnumbered\)$/i, '')
+    .replace(/\s+\(Signature\)$/i, '')
+    .replace(/\s+\(Metal\)$/i, '')
     .replace(/'/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
   return `/en/Riftbound/Cards/${slug}`;
+}
+
+function getCardmarketExpansionPath(card: RiftCodexCard) {
+  const setCode = getSetCode(card);
+  const label = card.set?.label ?? '';
+
+  if (setCode === 'OGN') {
+    return 'Origins';
+  }
+
+  if (setCode === 'UNL') {
+    return 'Unleashed';
+  }
+
+  if (setCode === 'SFD') {
+    return 'Spiritforged';
+  }
+
+  if (setCode === 'OPP' || label.toLowerCase().includes('promo')) {
+    return 'Origins-Promos';
+  }
+
+  return label
+    .replace(/[:]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function getCardmarketProductSlug(card: RiftCodexCard) {
+  const baseSlug = card.name
+    .replace(/\s+\(Alternate Art\)$/i, '')
+    .replace(/\s+\(Overnumbered\)$/i, '')
+    .replace(/\s+\(Signature\)$/i, '')
+    .replace(/\s+\(Metal\)$/i, '')
+    .replace(/'/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  if (card.metadata?.signature) {
+    return `${baseSlug}-V3-Overnumbered`;
+  }
+
+  if (card.metadata?.overnumbered) {
+    return `${baseSlug}-V2-Overnumbered`;
+  }
+
+  if (card.name.includes("Kai'Sa - Daughter of the Void") && card.classification?.rarity === 'Rare') {
+    return `${baseSlug}-V1-Rare`;
+  }
+
+  return baseSlug;
+}
+
+function getCardmarketSinglesPath(card: RiftCodexCard) {
+  const expansion = getCardmarketExpansionPath(card);
+
+  if (!expansion) {
+    return getCardmarketPath(card.name);
+  }
+
+  return `/en/Riftbound/Products/Singles/${expansion}/${getCardmarketProductSlug(card)}`;
 }
 
 export function mapRiftCodexCard(card: RiftCodexCard): RiftboundCard {
@@ -62,7 +126,11 @@ export function mapRiftCodexCard(card: RiftCodexCard): RiftboundCard {
     cost: card.attributes?.energy ?? 0,
     type: card.classification?.type ?? 'Card',
     imageUrl: card.media?.image_url,
-    cardmarketPath: getCardmarketPath(card.name),
+    cardmarketPath: getCardmarketSinglesPath(card),
+    rarity: card.classification?.rarity ?? undefined,
+    alternateArt: card.metadata?.alternate_art,
+    overnumbered: card.metadata?.overnumbered,
+    signature: card.metadata?.signature,
   };
 }
 

@@ -10,6 +10,10 @@ export type RiftboundCard = {
   cardmarketPath?: string;
   imageUrl?: string;
   externalId?: string;
+  rarity?: string;
+  alternateArt?: boolean;
+  overnumbered?: boolean;
+  signature?: boolean;
 };
 
 export type CardScanInput = {
