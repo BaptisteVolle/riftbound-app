@@ -154,11 +154,16 @@ export async function fetchRiftCodexCards(query = '', limit = 40) {
   return (data.items ?? []).map(mapRiftCodexCard);
 }
 
-async function fetchRiftCodexPage(page: number, limit = 50) {
+async function fetchRiftCodexPage(page: number, limit = 50, setCode?: string) {
   const params = new URLSearchParams({
     limit: String(limit),
     page: String(page),
   });
+
+  if (setCode) {
+    params.set('set_id', setCode.toLowerCase());
+  }
+
   const response = await fetch(`${RIFTCODEX_CARDS_URL}?${params.toString()}`);
 
   if (!response.ok) {
@@ -178,8 +183,10 @@ export async function findRiftCodexCardFromScan(input: CardScanInput) {
     return undefined;
   }
 
-  for (let page = 1; page <= 20; page += 1) {
-    const pageCards = await fetchRiftCodexPage(page);
+  const maxPages = targetSetCode ? 8 : 20;
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const pageCards = await fetchRiftCodexPage(page, 50, targetSetCode);
 
     if (pageCards.length === 0) {
       return undefined;
