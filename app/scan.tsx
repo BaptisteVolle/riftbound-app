@@ -14,7 +14,10 @@ import {
 import { Button } from '../src/components/Button';
 import { ScannerOverlay } from '../src/components/ScannerOverlay';
 import { RiftboundCard } from '../src/features/cards/cards.types';
-import { buildCardmarketSearchUrl, buildCardmarketUrl } from '../src/features/cards/cards.service';
+import {
+  buildCardmarketSearchUrl,
+  buildCardmarketUrlForCard,
+} from '../src/features/cards/cards.service';
 import { findRiftCodexCardFromScan } from '../src/features/riftcodex/riftcodex.service';
 
 export default function ScanScreen() {
@@ -59,9 +62,9 @@ export default function ScanScreen() {
       setNumber(card.number);
       setDetectedCard(card);
       setScanStatus('found');
-      const directUrl = buildCardmarketUrl(card);
-      setLastUrl(directUrl);
-      setLastUrlMode('RiftCodex found - direct Cardmarket URL');
+      const cardmarketUrl = buildCardmarketUrlForCard(card);
+      setLastUrl(cardmarketUrl);
+      setLastUrlMode(`RiftCodex found - ${card.rarity ?? 'variant'} URL`);
     } catch {
       setScanStatus('not-found');
       setError('RiftCodex lookup failed. Check your connection and try again.');
@@ -75,7 +78,7 @@ export default function ScanScreen() {
     }
 
     const url = detectedCard
-      ? buildCardmarketUrl(detectedCard)
+      ? buildCardmarketUrlForCard(detectedCard)
       : buildCardmarketSearchUrl({ name, setCode, number });
 
     if (!url) {
@@ -86,7 +89,9 @@ export default function ScanScreen() {
     setError('');
     setLastUrl(url);
     setLastUrlMode(
-      detectedCard ? 'RiftCodex found - direct Cardmarket URL' : 'RiftCodex not found - name search',
+      detectedCard
+        ? `RiftCodex found - ${detectedCard.rarity ?? 'variant'} URL`
+        : 'RiftCodex not found - name search',
     );
     Linking.openURL(url);
   }
@@ -94,7 +99,9 @@ export default function ScanScreen() {
   async function handleCopyUrl() {
     const url =
       lastUrl ||
-      (detectedCard ? buildCardmarketUrl(detectedCard) : buildCardmarketSearchUrl({ name, setCode, number }));
+      (detectedCard
+        ? buildCardmarketUrlForCard(detectedCard)
+        : buildCardmarketSearchUrl({ name, setCode, number }));
 
     if (!url) {
       setError('No Cardmarket URL to copy yet.');
@@ -104,7 +111,9 @@ export default function ScanScreen() {
     await Clipboard.setStringAsync(url);
     setLastUrl(url);
     setLastUrlMode(
-      detectedCard ? 'RiftCodex found - direct Cardmarket URL' : 'RiftCodex not found - name search',
+      detectedCard
+        ? `RiftCodex found - ${detectedCard.rarity ?? 'variant'} URL`
+        : 'RiftCodex not found - name search',
     );
     setError('URL copied.');
   }
@@ -167,18 +176,22 @@ export default function ScanScreen() {
         />
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button
-        disabled={!canSearchCardmarket}
-        label="SEARCH CARDMARKET"
-        tone="gold"
-        onPress={handleSearchCardmarket}
-      />
-      <Button
-        disabled={!canSearchCardmarket && !lastUrl}
-        label="COPY URL"
-        tone="blue"
-        onPress={handleCopyUrl}
-      />
+      <View style={styles.row}>
+        <Button
+          disabled={!canSearchCardmarket}
+          label="SEARCH"
+          tone="gold"
+          style={styles.actionButton}
+          onPress={handleSearchCardmarket}
+        />
+        <Button
+          disabled={!canSearchCardmarket && !lastUrl}
+          label="COPY URL"
+          tone="blue"
+          style={styles.actionButton}
+          onPress={handleCopyUrl}
+        />
+      </View>
     </View>
   );
 
@@ -253,6 +266,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   compactInput: {
+    flex: 1,
+  },
+  actionButton: {
     flex: 1,
   },
   error: {

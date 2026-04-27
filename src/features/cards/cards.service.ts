@@ -84,3 +84,18 @@ export function buildCardmarketSearchUrl(input: CardScanInput) {
     searchQuery,
   )}`;
 }
+
+export function buildCardmarketUrlForCard(card: RiftboundCard) {
+  const shouldUseVariantSlug =
+    Boolean(card.cardmarketPath) &&
+    (card.overnumbered ||
+      card.signature ||
+      card.alternateArt ||
+      ['Rare', 'Epic', 'Showcase'].includes(card.rarity ?? ''));
+
+  if (shouldUseVariantSlug) {
+    return buildCardmarketUrl(card);
+  }
+
+  return buildCardmarketSearchUrl({ name: card.name }) ?? buildCardmarketUrl(card);
+}
