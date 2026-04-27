@@ -8,6 +8,24 @@ function getSetCode(card: RiftCodexCard) {
   return (card.set?.set_id ?? card.set?.id ?? '').toUpperCase();
 }
 
+function normalizeSetCode(value?: string) {
+  const normalized = value?.trim().toUpperCase() ?? '';
+
+  if (['SF', 'SPIRIT', 'SPIRITFORGED'].includes(normalized)) {
+    return 'SFD';
+  }
+
+  if (['ORIGIN', 'ORIGINS', 'OCN'].includes(normalized)) {
+    return 'OGN';
+  }
+
+  if (['UNLEASHED'].includes(normalized)) {
+    return 'UNL';
+  }
+
+  return normalized;
+}
+
 function getPrintedNumber(card: RiftCodexCard) {
   const [, printedNumber] = card.riftbound_id?.match(/^[a-z]+-([^-]+)/i) ?? [];
 
@@ -178,13 +196,34 @@ async function fetchRiftCodexPage(page: number, limit = 50, setCode?: string) {
   return data.items ?? [];
 }
 
+async function fetchRiftCodexCardByPrintedId(setCode: string, number: string) {
+  const response = await fetch(
+    `${RIFTCODEX_CARDS_URL}/riftbound/${setCode.toLowerCase()}-${number.toLowerCase()}`,
+  );
+
+  if (!response.ok) {
+    return undefined;
+  }
+
+  const data = (await response.json()) as RiftCodexCard[];
+  return data[0];
+}
+
 export async function findRiftCodexCardFromScan(input: CardScanInput) {
-  const targetSetCode = input.setCode?.trim().toUpperCase();
+  const targetSetCode = normalizeSetCode(input.setCode);
   const targetNumber = input.number ? normalizeCollectorNumber(input.number) : '';
   const targetName = input.name ? normalizeText(input.name) : '';
 
   if (!targetSetCode && !targetNumber && !targetName) {
     return undefined;
+  }
+
+  if (targetSetCode && targetNumber) {
+    const directMatch = await fetchRiftCodexCardByPrintedId(targetSetCode, targetNumber);
+
+    if (directMatch) {
+      return mapRiftCodexCard(directMatch);
+    }
   }
 
   const maxPages = targetSetCode ? 8 : 20;
