@@ -16,9 +16,16 @@ export default function ScanScreen() {
   const [error, setError] = useState('');
   const [detectedCard, setDetectedCard] = useState<RiftboundCard | undefined>();
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'found' | 'not-found'>('idle');
-  const canSearchCardmarket = Boolean(name.trim() && setCode.trim() && number.trim());
+  const canSearchCardmarket = Boolean(name.trim());
 
   async function handleScan() {
+    if (!name.trim() && !setCode.trim() && !number.trim()) {
+      setScanStatus('not-found');
+      setDetectedCard(undefined);
+      setError('Camera OCR is not enabled yet. Enter text first, then validate with RiftCodex.');
+      return;
+    }
+
     setScanStatus('scanning');
     setDetectedCard(undefined);
     setError('');
@@ -28,7 +35,7 @@ export default function ScanScreen() {
 
       if (!card) {
         setScanStatus('not-found');
-        setError('No card detected. Try name + set + number, like Sneaky Deckhand / OGN / 176/298.');
+        setError('No RiftCodex match. You can still search Cardmarket by card name.');
         return;
       }
 
@@ -45,7 +52,7 @@ export default function ScanScreen() {
 
   function handleSearchCardmarket() {
     if (!canSearchCardmarket) {
-      setError('Scan a card first so name, set, and number are filled.');
+      setError('Enter a card name before searching Cardmarket.');
       return;
     }
 
@@ -66,7 +73,7 @@ export default function ScanScreen() {
     <View style={styles.controls}>
       <Button
         disabled={scanStatus === 'scanning'}
-        label={scanStatus === 'scanning' ? 'SCANNING...' : 'SCAN'}
+        label={scanStatus === 'scanning' ? 'CHECKING...' : 'CHECK RIFTCODEX'}
         tone="orange"
         onPress={handleScan}
       />
