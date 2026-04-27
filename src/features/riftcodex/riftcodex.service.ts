@@ -45,8 +45,17 @@ export function mapRiftCodexCard(card: RiftCodexCard): RiftboundCard {
   };
 }
 
-export async function fetchRiftCodexCards() {
-  const response = await fetch(RIFTCODEX_CARDS_URL);
+export async function fetchRiftCodexCards(query = '', limit = 40) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    page: '1',
+  });
+
+  if (query.trim()) {
+    params.set('name', query.trim());
+  }
+
+  const response = await fetch(`${RIFTCODEX_CARDS_URL}?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error(`RiftCodex request failed with ${response.status}`);

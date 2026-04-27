@@ -6,9 +6,10 @@ import { RiftboundCard } from '../features/cards/cards.types';
 
 type CardPreviewProps = {
   card: RiftboundCard;
+  showImage?: boolean;
 };
 
-export function CardPreview({ card }: CardPreviewProps) {
+export function CardPreview({ card, showImage = false }: CardPreviewProps) {
   function handleOpenCard() {
     router.push({
       pathname: '/card/[id]',
@@ -28,7 +29,7 @@ export function CardPreview({ card }: CardPreviewProps) {
 
   return (
     <Pressable onPress={handleOpenCard} style={styles.card}>
-      {card.imageUrl ? <Image source={{ uri: card.imageUrl }} style={styles.image} /> : null}
+      {showImage && card.imageUrl ? <Image source={{ uri: card.imageUrl }} style={styles.image} /> : null}
       <Text style={styles.name}>{card.name}</Text>
       <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
       <View style={styles.row}>

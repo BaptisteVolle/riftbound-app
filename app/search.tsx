@@ -9,20 +9,33 @@ import { fetchRiftCodexCards } from '../src/features/riftcodex/riftcodex.service
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [cards, setCards] = useState<RiftboundCard[]>(getAllCards());
-  const [sourceLabel, setSourceLabel] = useState('Local fallback');
+  const [sourceLabel, setSourceLabel] = useState('Local starter cards');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
+    const normalizedQuery = query.trim();
 
-    fetchRiftCodexCards()
+    if (normalizedQuery.length < 2) {
+      setCards(getAllCards());
+      setSourceLabel('Type 2+ characters to search RiftCodex');
+      setError('');
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsLoading(true);
+    fetchRiftCodexCards(normalizedQuery, 40)
       .then((riftCodexCards) => {
         if (!isMounted) {
           return;
         }
 
         setCards(riftCodexCards);
-        setSourceLabel(`RiftCodex - ${riftCodexCards.length} cards`);
+        setSourceLabel(`RiftCodex - ${riftCodexCards.length} results`);
         setError('');
       })
       .catch(() => {
@@ -33,12 +46,17 @@ export default function SearchScreen() {
         setCards(getAllCards());
         setSourceLabel('Local fallback');
         setError('RiftCodex unavailable, showing local cards.');
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [query]);
 
   const results = useMemo(() => {
     const normalizedQuery = query.toLowerCase().trim();
@@ -60,6 +78,7 @@ export default function SearchScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>SEARCH CARDS</Text>
       <Text style={styles.source}>{sourceLabel}</Text>
+      {isLoading ? <Text style={styles.source}>Loading...</Text> : null}
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
