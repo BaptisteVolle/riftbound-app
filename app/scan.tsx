@@ -5,7 +5,7 @@ import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '../src/components/Button';
 import { ScannerOverlay } from '../src/components/ScannerOverlay';
 import { RiftboundCard } from '../src/features/cards/cards.types';
-import { buildCardmarketSearchUrl } from '../src/features/cards/cards.service';
+import { buildCardmarketSearchUrl, buildCardmarketUrl } from '../src/features/cards/cards.service';
 import { findRiftCodexCardFromScan } from '../src/features/riftcodex/riftcodex.service';
 
 export default function ScanScreen() {
@@ -56,7 +56,9 @@ export default function ScanScreen() {
       return;
     }
 
-    const url = buildCardmarketSearchUrl({ name, setCode, number });
+    const url = detectedCard
+      ? buildCardmarketUrl(detectedCard)
+      : buildCardmarketSearchUrl({ name, setCode, number });
 
     if (!url) {
       setError('Enter at least a card name, set, or number.');
