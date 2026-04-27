@@ -4,7 +4,9 @@ import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '../src/components/Button';
 import { ScannerOverlay } from '../src/components/ScannerOverlay';
+import { RiftboundCard } from '../src/features/cards/cards.types';
 import { buildCardmarketSearchUrl } from '../src/features/cards/cards.service';
+import { findRiftCodexCardFromScan } from '../src/features/riftcodex/riftcodex.service';
 
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -12,13 +14,33 @@ export default function ScanScreen() {
   const [setCode, setSetCode] = useState('');
   const [number, setNumber] = useState('');
   const [error, setError] = useState('');
+  const [detectedCard, setDetectedCard] = useState<RiftboundCard | undefined>();
+  const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'found' | 'not-found'>('idle');
   const canSearchCardmarket = Boolean(name.trim() && setCode.trim() && number.trim());
 
-  function handleScan() {
-    setName('Hextech Ray');
-    setSetCode('OGN');
-    setNumber('009');
+  async function handleScan() {
+    setScanStatus('scanning');
+    setDetectedCard(undefined);
     setError('');
+
+    try {
+      const card = await findRiftCodexCardFromScan({ name, setCode, number });
+
+      if (!card) {
+        setScanStatus('not-found');
+        setError('No card detected. Try name + set + number, like Sneaky Deckhand / OGN / 176/298.');
+        return;
+      }
+
+      setName(card.name);
+      setSetCode(card.setCode);
+      setNumber(card.number);
+      setDetectedCard(card);
+      setScanStatus('found');
+    } catch {
+      setScanStatus('not-found');
+      setError('RiftCodex lookup failed. Check your connection and try again.');
+    }
   }
 
   function handleSearchCardmarket() {
@@ -40,7 +62,20 @@ export default function ScanScreen() {
 
   const scanControls = (
     <View style={styles.controls}>
-      <Button label="SCAN" tone="orange" onPress={handleScan} />
+      <Button
+        disabled={scanStatus === 'scanning'}
+        label={scanStatus === 'scanning' ? 'SCANNING...' : 'SCAN'}
+        tone="orange"
+        onPress={handleScan}
+      />
+      {scanStatus === 'found' && detectedCard ? (
+        <View style={styles.foundBox}>
+          <Text style={styles.foundTitle}>CARD FOUND</Text>
+          <Text style={styles.foundText}>
+            {detectedCard.name} - {detectedCard.setCode} {detectedCard.number}
+          </Text>
+        </View>
+      ) : null}
       <TextInput
         autoCapitalize="words"
         onChangeText={setName}
@@ -60,8 +95,7 @@ export default function ScanScreen() {
           value={setCode}
         />
         <TextInput
-          keyboardType="number-pad"
-          maxLength={3}
+          maxLength={8}
           onChangeText={setNumber}
           placeholder="No."
           placeholderTextColor="#555"
@@ -155,6 +189,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 10,
     backgroundColor: '#E66A2C',
+    color: '#F8F0DC',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  foundBox: {
+    borderWidth: 2,
+    borderColor: '#F2B84B',
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: '#123F6D',
+  },
+  foundTitle: {
+    color: '#F2B84B',
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  foundText: {
+    marginTop: 2,
     color: '#F8F0DC',
     fontSize: 14,
     fontWeight: '800',

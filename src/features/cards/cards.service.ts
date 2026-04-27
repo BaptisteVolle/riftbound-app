@@ -1,5 +1,6 @@
 import { cards } from './cards.data';
 import { CardScanInput, RiftboundCard } from './cards.types';
+import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 
 const CARDMARKET_BASE_URL = 'https://www.cardmarket.com';
 
@@ -74,7 +75,7 @@ export function buildCardmarketUrl(card: RiftboundCard) {
 }
 
 export function buildCardmarketSearchUrl(input: CardScanInput) {
-  const paddedNumber = input.number ? input.number.padStart(3, '0') : '';
+  const paddedNumber = input.number ? normalizeCollectorNumber(input.number) : '';
   const collectorCode = [input.setCode?.toUpperCase(), paddedNumber].filter(Boolean).join('-');
   const searchQuery = [input.name, collectorCode].filter(Boolean).join(' ').trim();
 
