@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Button } from '../src/components/Button';
 import { ScannerOverlay } from '../src/components/ScannerOverlay';
@@ -87,27 +95,33 @@ export default function ScanScreen() {
       ) : null}
       <TextInput
         autoCapitalize="words"
+        blurOnSubmit
         onChangeText={setName}
         placeholder="Card name"
         placeholderTextColor="#555"
+        returnKeyType="done"
         style={styles.input}
         value={name}
       />
       <View style={styles.row}>
         <TextInput
           autoCapitalize="characters"
+          blurOnSubmit
           maxLength={6}
           onChangeText={setSetCode}
           placeholder="Set"
           placeholderTextColor="#555"
+          returnKeyType="done"
           style={[styles.input, styles.compactInput]}
           value={setCode}
         />
         <TextInput
+          blurOnSubmit
           maxLength={8}
           onChangeText={setNumber}
           placeholder="No."
           placeholderTextColor="#555"
+          returnKeyType="done"
           style={[styles.input, styles.compactInput]}
           value={number}
         />
@@ -142,13 +156,16 @@ export default function ScanScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
       <CameraView style={styles.camera} facing="back" />
       <ScannerOverlay />
       <View style={styles.bottomPanel}>
         {scanControls}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
