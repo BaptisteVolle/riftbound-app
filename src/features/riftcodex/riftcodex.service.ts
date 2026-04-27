@@ -88,15 +88,19 @@ function getCardmarketProductSlug(card: RiftCodexCard) {
     .replace(/^-|-$/g, '');
 
   if (card.metadata?.signature) {
-    return `${baseSlug}-V3-Overnumbered`;
+    return `${baseSlug}-V3-Signed-Showcase`;
   }
 
   if (card.metadata?.overnumbered) {
     return `${baseSlug}-V2-Overnumbered`;
   }
 
-  if (card.name.includes("Kai'Sa - Daughter of the Void") && card.classification?.rarity === 'Rare') {
-    return `${baseSlug}-V1-Rare`;
+  if (card.metadata?.alternate_art || card.classification?.rarity === 'Showcase') {
+    return `${baseSlug}-V2-Showcase`;
+  }
+
+  if (card.classification?.rarity) {
+    return `${baseSlug}-V1-${card.classification.rarity}`;
   }
 
   return baseSlug;
