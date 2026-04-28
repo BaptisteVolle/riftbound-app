@@ -14,16 +14,16 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-start',
-    paddingHorizontal: 28,
-    paddingTop: 72,
+    paddingHorizontal: 14,
+    paddingTop: 48,
   },
   frame: {
-    aspectRatio: 0.72,
+    aspectRatio: 63 / 88,
     justifyContent: 'flex-start',
     borderWidth: 3,
     borderColor: '#F2B84B',
-    borderRadius: 18,
-    paddingTop: 86,
+    borderRadius: 20,
+    paddingTop: 94,
     backgroundColor: 'rgba(7, 21, 39, 0.28)',
   },
   label: {
