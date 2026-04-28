@@ -36,6 +36,16 @@ export default function ScanScreen() {
   const [lastUrl, setLastUrl] = useState('');
   const [lastUrlMode, setLastUrlMode] = useState('');
   const canSearchCardmarket = Boolean(name.trim());
+  const isReviewingPhoto = Boolean(capturedPhotoUri);
+
+  function handleRetakePhoto() {
+    setCapturedPhotoUri('');
+    setDetectedCard(undefined);
+    setScanStatus('idle');
+    setLastUrl('');
+    setLastUrlMode('');
+    setError('');
+  }
 
   async function handleCapturePhoto() {
     setScanStatus('capturing');
@@ -148,18 +158,28 @@ export default function ScanScreen() {
     setError('URL copied.');
   }
 
-  const scanControls = (
-    <View style={styles.controls}>
+  const captureControls = (
+    <View style={styles.captureBar}>
       <Button
         disabled={scanStatus === 'capturing'}
         label={scanStatus === 'capturing' ? 'CAPTURING...' : 'CAPTURE PHOTO'}
         tone="orange"
         onPress={handleCapturePhoto}
       />
+      {error ? <Text style={styles.captureError}>{error}</Text> : null}
+    </View>
+  );
+
+  const reviewControls = (
+    <View style={styles.controls}>
       {capturedPhotoUri ? (
         <View style={styles.photoBox}>
           <Image source={{ uri: capturedPhotoUri }} style={styles.photoPreview} />
-          <Text style={styles.photoText}>Ready for OCR</Text>
+          <View style={styles.photoCopy}>
+            <Text style={styles.photoTitle}>Photo captured</Text>
+            <Text style={styles.photoText}>Ready for OCR</Text>
+          </View>
+          <Button label="RETAKE" tone="dark" style={styles.retakeButton} onPress={handleRetakePhoto} />
         </View>
       ) : null}
       <Button
@@ -241,7 +261,7 @@ export default function ScanScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.message}>Loading camera...</Text>
-        {scanControls}
+        {isReviewingPhoto ? reviewControls : captureControls}
       </View>
     );
   }
@@ -251,7 +271,7 @@ export default function ScanScreen() {
       <View style={styles.centered}>
         <Text style={styles.message}>Camera access is needed to scan cards.</Text>
         <Button label="ALLOW CAMERA" onPress={requestPermission} />
-        {scanControls}
+        {isReviewingPhoto ? reviewControls : captureControls}
       </View>
     );
   }
@@ -262,9 +282,9 @@ export default function ScanScreen() {
       style={styles.container}
     >
       <CameraView ref={cameraRef} style={styles.camera} facing="back" />
-      <ScannerOverlay />
-      <View style={styles.bottomPanel}>
-        {scanControls}
+      {!isReviewingPhoto ? <ScannerOverlay /> : null}
+      <View style={isReviewingPhoto ? styles.reviewPanel : styles.capturePanel}>
+        {isReviewingPhoto ? reviewControls : captureControls}
       </View>
     </KeyboardAvoidingView>
   );
@@ -278,7 +298,27 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  bottomPanel: {
+  capturePanel: {
+    position: 'absolute',
+    right: 18,
+    bottom: 24,
+    left: 18,
+  },
+  captureBar: {
+    gap: 10,
+  },
+  captureError: {
+    borderWidth: 2,
+    borderColor: '#F8F0DC',
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: '#E66A2C',
+    color: '#F8F0DC',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  reviewPanel: {
     position: 'absolute',
     right: 18,
     bottom: 24,
@@ -360,11 +400,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#071527',
   },
-  photoText: {
+  photoCopy: {
     flex: 1,
+  },
+  photoTitle: {
+    color: '#F2B84B',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  photoText: {
     color: '#F8F0DC',
     fontSize: 13,
     fontWeight: '800',
+  },
+  retakeButton: {
+    minWidth: 88,
+    paddingHorizontal: 10,
   },
   debugBox: {
     borderWidth: 2,
