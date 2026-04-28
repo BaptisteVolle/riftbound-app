@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Clipboard from 'expo-clipboard';
 import {
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -21,16 +22,45 @@ import {
 import { findRiftCodexCardFromScan } from '../src/features/riftcodex/riftcodex.service';
 
 export default function ScanScreen() {
+  const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [name, setName] = useState('');
   const [setCode, setSetCode] = useState('');
   const [number, setNumber] = useState('');
   const [error, setError] = useState('');
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState('');
   const [detectedCard, setDetectedCard] = useState<RiftboundCard | undefined>();
-  const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'found' | 'not-found'>('idle');
+  const [scanStatus, setScanStatus] = useState<
+    'idle' | 'capturing' | 'captured' | 'scanning' | 'found' | 'not-found'
+  >('idle');
   const [lastUrl, setLastUrl] = useState('');
   const [lastUrlMode, setLastUrlMode] = useState('');
   const canSearchCardmarket = Boolean(name.trim());
+
+  async function handleCapturePhoto() {
+    setScanStatus('capturing');
+    setError('');
+
+    try {
+      const photo = await cameraRef.current?.takePictureAsync({
+        quality: 0.55,
+        skipProcessing: false,
+      });
+
+      if (!photo?.uri) {
+        setScanStatus('not-found');
+        setError('Could not capture a photo. Try again.');
+        return;
+      }
+
+      setCapturedPhotoUri(photo.uri);
+      setScanStatus('captured');
+      setError('Photo captured. OCR is the next step.');
+    } catch {
+      setScanStatus('not-found');
+      setError('Camera capture failed. Try again.');
+    }
+  }
 
   async function handleScan() {
     if (!name.trim() && !setCode.trim() && !number.trim()) {
@@ -121,9 +151,21 @@ export default function ScanScreen() {
   const scanControls = (
     <View style={styles.controls}>
       <Button
+        disabled={scanStatus === 'capturing'}
+        label={scanStatus === 'capturing' ? 'CAPTURING...' : 'CAPTURE PHOTO'}
+        tone="orange"
+        onPress={handleCapturePhoto}
+      />
+      {capturedPhotoUri ? (
+        <View style={styles.photoBox}>
+          <Image source={{ uri: capturedPhotoUri }} style={styles.photoPreview} />
+          <Text style={styles.photoText}>Ready for OCR</Text>
+        </View>
+      ) : null}
+      <Button
         disabled={scanStatus === 'scanning'}
         label={scanStatus === 'scanning' ? 'CHECKING...' : 'CHECK RIFTCODEX'}
-        tone="orange"
+        tone="blue"
         onPress={handleScan}
       />
       {scanStatus === 'found' && detectedCard ? (
@@ -219,7 +261,7 @@ export default function ScanScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <CameraView style={styles.camera} facing="back" />
+      <CameraView ref={cameraRef} style={styles.camera} facing="back" />
       <ScannerOverlay />
       <View style={styles.bottomPanel}>
         {scanControls}
@@ -301,6 +343,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  photoBox: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    borderWidth: 2,
+    borderColor: '#F2B84B',
+    borderRadius: 12,
+    padding: 8,
+    backgroundColor: '#123F6D',
+  },
+  photoPreview: {
+    width: 42,
+    height: 58,
+    borderRadius: 8,
+    backgroundColor: '#071527',
+  },
+  photoText: {
+    flex: 1,
+    color: '#F8F0DC',
+    fontSize: 13,
+    fontWeight: '800',
   },
   debugBox: {
     borderWidth: 2,
