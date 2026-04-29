@@ -12,9 +12,9 @@ export default function HomeScreen() {
       <Pressable onPress={() => router.push('/search')} style={[styles.button, styles.pink]}>
         <Text style={styles.buttonText}>SEARCH</Text>
       </Pressable>
-      <View style={[styles.button, styles.disabled]}>
-        <Text style={styles.disabledText}>COLLECTION</Text>
-      </View>
+      <Pressable onPress={() => router.push('/collection')} style={[styles.button, styles.blue]}>
+        <Text style={styles.buttonText}>COLLECTION</Text>
+      </Pressable>
     </View>
   );
 }
@@ -50,15 +50,8 @@ const styles = StyleSheet.create({
   pink: {
     backgroundColor: '#FF6B9E',
   },
-  disabled: {
-    alignItems: 'center',
-    backgroundColor: '#ddd',
-    opacity: 0.7,
-  },
-  disabledText: {
-    color: '#111',
-    fontSize: 20,
-    fontWeight: '900',
+  blue: {
+    backgroundColor: '#1F6F9F',
   },
   buttonText: {
     color: '#111',

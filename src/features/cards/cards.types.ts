@@ -7,13 +7,13 @@ export type RiftboundCard = {
   color: string;
   cost: number;
   type: string;
-  cardmarketPath?: string;
   imageUrl?: string;
   externalId?: string;
   rarity?: string;
   alternateArt?: boolean;
   overnumbered?: boolean;
   signature?: boolean;
+  matchConfidence?: 'exact' | 'name-only' | 'collector-only';
 };
 
 export type CardScanInput = {

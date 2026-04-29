@@ -1,15 +1,18 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Image, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../src/components/Button';
 import {
   buildCardmarketSearchUrl,
-  buildCardmarketUrl,
+  buildCardmarketUrlForCard,
   getCardById,
+  getOpenableCardmarketUrlForCard,
 } from '../../src/features/cards/cards.service';
 import { formatCardMeta } from '../../src/lib/utils';
 
 export default function CardDetailScreen() {
+  const [message, setMessage] = useState('');
   const params = useLocalSearchParams<{
     id: string;
     name?: string;
@@ -19,6 +22,11 @@ export default function CardDetailScreen() {
     color?: string;
     cost?: string;
     type?: string;
+    rarity?: string;
+    alternateArt?: string;
+    overnumbered?: string;
+    signature?: string;
+    matchConfidence?: 'exact' | 'name-only' | 'collector-only' | '';
     imageUrl?: string;
   }>();
   const localCard = params.id ? getCardById(params.id) : undefined;
@@ -34,6 +42,11 @@ export default function CardDetailScreen() {
           color: params.color ?? 'Unknown',
           cost: Number(params.cost ?? 0),
           type: params.type ?? 'Card',
+          rarity: params.rarity || undefined,
+          alternateArt: params.alternateArt === 'true',
+          overnumbered: params.overnumbered === 'true',
+          signature: params.signature === 'true',
+          matchConfidence: params.matchConfidence || undefined,
           imageUrl: params.imageUrl || undefined,
         }
       : undefined);
@@ -46,31 +59,57 @@ export default function CardDetailScreen() {
     );
   }
 
+  const currentCard = card;
+  const shouldUseDirectCardmarket =
+    !currentCard.matchConfidence || currentCard.matchConfidence === 'exact';
+  const directCardmarketUrl = shouldUseDirectCardmarket
+    ? buildCardmarketUrlForCard(currentCard)
+    : undefined;
   const cardmarketUrl =
-    localCard ? buildCardmarketUrl(localCard) : buildCardmarketSearchUrl(card) ?? '';
+    directCardmarketUrl ?? buildCardmarketSearchUrl({ name: currentCard.name }) ?? '';
+
+  async function openCardmarket() {
+    setMessage('Checking Cardmarket page...');
+
+    const resolvedUrl = shouldUseDirectCardmarket
+      ? await getOpenableCardmarketUrlForCard(currentCard)
+      : undefined;
+    const url = resolvedUrl?.url ?? cardmarketUrl;
+
+    if (!url) {
+      setMessage('No Cardmarket URL found for this card.');
+      return;
+    }
+
+    setMessage(
+      resolvedUrl?.mode === 'search'
+        ? 'Exact page returned 404. Opening name search.'
+        : '',
+    );
+    Linking.openURL(url);
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {card.imageUrl ? <Image source={{ uri: card.imageUrl }} style={styles.image} /> : null}
+      {currentCard.imageUrl ? <Image source={{ uri: currentCard.imageUrl }} style={styles.image} /> : null}
       <View style={styles.hero}>
-        <Text style={styles.name}>{card.name}</Text>
-        <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
+        <Text style={styles.name}>{currentCard.name}</Text>
+        <Text style={styles.meta}>{formatCardMeta(currentCard.setCode, currentCard.number)}</Text>
       </View>
 
       <View style={styles.panel}>
-        <Info label="Set" value={card.set} />
-        <Info label="Type" value={card.type} />
-        <Info label="Color" value={card.color} />
-        <Info label="Cost" value={String(card.cost)} />
+        <Info label="Set" value={currentCard.set} />
+        <Info label="Type" value={currentCard.type} />
+        <Info label="Color" value={currentCard.color} />
+        <Info label="Cost" value={String(currentCard.cost)} />
       </View>
 
       <Button
-        label="OPEN CARDMARKET"
-        onPress={() => {
-          Linking.openURL(cardmarketUrl);
-        }}
+        label={directCardmarketUrl ? 'OPEN CARDMARKET' : 'SEARCH CARDMARKET'}
+        onPress={openCardmarket}
         tone="pink"
       />
+      {message ? <Text style={styles.message}>{message}</Text> : null}
     </ScrollView>
   );
 }
@@ -140,6 +179,17 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     backgroundColor: '#fff',
+  },
+  message: {
+    borderWidth: 3,
+    borderColor: '#111',
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: '#FF6B9E',
+    color: '#111',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   infoRow: {
     flexDirection: 'row',

@@ -1,257 +1,787 @@
-import { useRef, useState } from 'react';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Clipboard from 'expo-clipboard';
+import { useEffect, useRef, useState } from "react";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
-  StyleSheet,
+  Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { Button } from '../src/components/Button';
-import { ScannerOverlay } from '../src/components/ScannerOverlay';
-import { RiftboundCard } from '../src/features/cards/cards.types';
+import { Button } from "../src/components/Button";
+import { ScannerOverlay } from "../src/components/ScannerOverlay";
+import {
+  formatCardmarketPrice,
+  getCardmarketPriceForCard,
+  getDisplayPrice,
+} from "../src/features/cardmarket/cardmarket-prices.service";
+import { CardmarketPriceSummary } from "../src/features/cardmarket/cardmarket.types";
+import { RiftboundCard } from "../src/features/cards/cards.types";
 import {
   buildCardmarketSearchUrl,
   buildCardmarketUrlForCard,
-} from '../src/features/cards/cards.service';
-import { findRiftCodexCardFromScan } from '../src/features/riftcodex/riftcodex.service';
+  getOpenableCardmarketUrlForCard,
+} from "../src/features/cards/cards.service";
+import { addCardToCollection } from "../src/features/collection/collection.service";
+import { CollectionPrinting } from "../src/features/collection/collection.types";
+import { findRiftCodexCardFromScan } from "../src/features/riftcodex/riftcodex.service";
+import {
+  chooseValidatedCard,
+  getCollectorMatch,
+  getManualScanInput,
+  getStableScanCandidates,
+  getVisibleAlternativeCandidates,
+  hasAnyScanInput,
+  isExactScanMatch,
+  isFoilLockedCard,
+  isSureTextMatch,
+} from "../src/features/scan/scan-match.service";
+import { scanCardTextFromPhoto } from "../src/features/scan/ocr.service";
+import type { RarityHint } from "../src/features/scan/ocr.service";
+import { styles } from "./scan.styles";
+
+function PriceMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value?: number | null;
+}) {
+  return (
+    <View style={styles.priceMetric}>
+      <Text style={styles.priceMetricLabel}>{label}</Text>
+      <Text style={styles.priceMetricValue}>
+        {formatCardmarketPrice(value)}
+      </Text>
+    </View>
+  );
+}
 
 export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const [name, setName] = useState('');
-  const [setCode, setSetCode] = useState('');
-  const [number, setNumber] = useState('');
-  const [error, setError] = useState('');
-  const [capturedPhotoUri, setCapturedPhotoUri] = useState('');
+  const [name, setName] = useState("");
+  const [setCode, setSetCode] = useState("");
+  const [number, setNumber] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState("");
   const [detectedCard, setDetectedCard] = useState<RiftboundCard | undefined>();
   const [scanStatus, setScanStatus] = useState<
-    'idle' | 'capturing' | 'captured' | 'scanning' | 'found' | 'not-found'
-  >('idle');
-  const [lastUrl, setLastUrl] = useState('');
-  const [lastUrlMode, setLastUrlMode] = useState('');
-  const canSearchCardmarket = Boolean(name.trim());
+    "idle" | "capturing" | "scanning" | "found" | "not-found"
+  >("idle");
+  const [lastUrl, setLastUrl] = useState("");
+  const [lastUrlMode, setLastUrlMode] = useState("");
+  const [canUseExactCard, setCanUseExactCard] = useState(false);
+  const [likelyCandidates, setLikelyCandidates] = useState<RiftboundCard[]>([]);
+  const [collectionQuantity, setCollectionQuantity] = useState(1);
+  const [collectionPrinting, setCollectionPrinting] =
+    useState<CollectionPrinting>("normal");
+  const [isSavingCollection, setIsSavingCollection] = useState(false);
+  const [collectionMessage, setCollectionMessage] = useState("");
+  const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
+  const [cardmarketPrice, setCardmarketPrice] =
+    useState<CardmarketPriceSummary>();
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
+  const [priceMessage, setPriceMessage] = useState("");
+
   const isReviewingPhoto = Boolean(capturedPhotoUri);
+  const canSearchCardmarket = Boolean(name.trim() || detectedCard?.name);
+  const candidateImageUri = detectedCard?.imageUrl || capturedPhotoUri;
+  const displayedName = detectedCard?.name ?? name;
+  const displayedMeta = detectedCard
+    ? `${detectedCard.setCode} ${detectedCard.number}`
+    : [setCode, number].filter(Boolean).join(" ");
+  const isBusy = scanStatus === "capturing" || scanStatus === "scanning";
+  const isCheckingScan = scanStatus === "scanning";
+  const isFoilLocked = isFoilLockedCard(detectedCard);
+  const activePrinting = isFoilLocked ? "foil" : collectionPrinting;
+  const pricePrinting = activePrinting;
+  const alternativeCandidates = getVisibleAlternativeCandidates(
+    likelyCandidates,
+    detectedCard,
+  );
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!detectedCard || !canUseExactCard) {
+      setCardmarketPrice(undefined);
+      setIsPriceLoading(false);
+      setPriceMessage("");
+      return () => {
+        isActive = false;
+      };
+    }
+
+    setIsPriceLoading(true);
+    setPriceMessage("");
+
+    getCardmarketPriceForCard(detectedCard)
+      .then((price) => {
+        if (!isActive) {
+          return;
+        }
+
+        setCardmarketPrice(price);
+        setPriceMessage(price ? "" : "No cached price yet");
+      })
+      .catch(() => {
+        if (isActive) {
+          setCardmarketPrice(undefined);
+          setPriceMessage("Price unavailable offline");
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsPriceLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [canUseExactCard, detectedCard]);
+
+  function resetScanResult() {
+    setDetectedCard(undefined);
+    setLastUrl("");
+    setLastUrlMode("");
+    setCanUseExactCard(false);
+    setLikelyCandidates([]);
+    setCollectionQuantity(1);
+    setCollectionPrinting("normal");
+    setCollectionMessage("");
+    setIsEditPanelOpen(false);
+    setStatusMessage("");
+    setCardmarketPrice(undefined);
+    setIsPriceLoading(false);
+    setPriceMessage("");
+  }
 
   function handleRetakePhoto() {
-    setCapturedPhotoUri('');
+    setCapturedPhotoUri("");
+    setName("");
+    setSetCode("");
+    setNumber("");
+    setScanStatus("idle");
+    resetScanResult();
+  }
+
+  function handleEditedFields() {
     setDetectedCard(undefined);
-    setScanStatus('idle');
-    setLastUrl('');
-    setLastUrlMode('');
-    setError('');
+    setCanUseExactCard(false);
+    setLikelyCandidates([]);
+    setCollectionMessage("");
+    setLastUrl("");
+    setLastUrlMode("");
+    setCardmarketPrice(undefined);
+    setPriceMessage("");
+    setIsEditPanelOpen(true);
+  }
+
+  function applyCandidateCard(card: RiftboundCard, message = "") {
+    const directUrl = buildCardmarketUrlForCard(card);
+    const fallbackUrl = buildCardmarketSearchUrl({ name: card.name });
+
+    setCollectionQuantity(1);
+    setCollectionPrinting(isFoilLockedCard(card) ? "foil" : "normal");
+    setCollectionMessage("");
+    setName(card.name);
+    setSetCode(card.setCode);
+    setNumber(card.number);
+    setDetectedCard(card);
+    setCanUseExactCard(Boolean(directUrl));
+    setLastUrl(directUrl ?? fallbackUrl ?? "");
+    setLastUrlMode(
+      directUrl ? "Exact Cardmarket page ready" : "Name search ready",
+    );
+    setScanStatus("found");
+    setIsEditPanelOpen(false);
+    setStatusMessage(message);
+  }
+
+  function updateCollectionQuantity(delta: number) {
+    setCollectionQuantity((currentQuantity) => {
+      return Math.max(1, Math.min(99, currentQuantity + delta));
+    });
+  }
+
+  async function handleAddToCollection() {
+    if (!detectedCard || !canUseExactCard) {
+      setStatusMessage(
+        "Confirm an exact card before adding it to the collection.",
+      );
+      return;
+    }
+
+    setIsSavingCollection(true);
+    setCollectionMessage("");
+
+    try {
+      const entry = await addCardToCollection(
+        detectedCard,
+        activePrinting,
+        collectionQuantity,
+      );
+      const total =
+        activePrinting === "foil" ? entry.foilQuantity : entry.normalQuantity;
+      setCollectionMessage(
+        `Added ${collectionQuantity} ${activePrinting} ${
+          collectionQuantity === 1 ? "copy" : "copies"
+        }. Total: ${total}.`,
+      );
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Could not add this card to the collection.");
+    } finally {
+      setIsSavingCollection(false);
+    }
   }
 
   async function handleCapturePhoto() {
-    setScanStatus('capturing');
-    setError('');
+    setScanStatus("capturing");
+    resetScanResult();
+    setName("");
+    setSetCode("");
+    setNumber("");
 
     try {
       const photo = await cameraRef.current?.takePictureAsync({
-        quality: 0.55,
+        quality: 0.65,
         skipProcessing: false,
       });
 
       if (!photo?.uri) {
-        setScanStatus('not-found');
-        setError('Could not capture a photo. Try again.');
+        setScanStatus("not-found");
+        setStatusMessage("Could not capture a photo. Try again.");
         return;
       }
 
       setCapturedPhotoUri(photo.uri);
-      setScanStatus('captured');
-      setError('Photo captured. OCR is the next step.');
+      await runScan({ photoUri: photo.uri });
     } catch {
-      setScanStatus('not-found');
-      setError('Camera capture failed. Try again.');
+      setScanStatus("not-found");
+      setStatusMessage("Camera capture failed. Try again.");
     }
   }
 
-  async function handleScan() {
-    if (!name.trim() && !setCode.trim() && !number.trim()) {
-      setScanStatus('not-found');
-      setDetectedCard(undefined);
-      setLastUrl('');
-      setLastUrlMode('');
-      setError('Camera OCR is not enabled yet. Enter text first, then validate with RiftCodex.');
+  async function runScan({ photoUri }: { photoUri?: string }) {
+    if (!photoUri && !name.trim() && !setCode.trim() && !number.trim()) {
+      setScanStatus("not-found");
+      setIsEditPanelOpen(true);
+      setStatusMessage(
+        "Enter at least a name, set, or number before checking.",
+      );
       return;
     }
 
-    setScanStatus('scanning');
-    setDetectedCard(undefined);
-    setLastUrl('');
-    setLastUrlMode('');
-    setError('');
+    setScanStatus("scanning");
+    resetScanResult();
+    setStatusMessage("Checking text...");
 
     try {
-      const card = await findRiftCodexCardFromScan({ name, setCode, number });
+      let scanInput = getManualScanInput(name, setCode, number);
+      let rarityHint: RarityHint | undefined;
 
-      if (!card) {
-        setScanStatus('not-found');
-        setError('No RiftCodex match. You can still search Cardmarket by card name.');
+      if (photoUri) {
+        const ocrResult = await scanCardTextFromPhoto(photoUri);
+        scanInput = ocrResult.input;
+        rarityHint = ocrResult.rarityHint;
+
+        setName(scanInput.name ?? "");
+        setSetCode(scanInput.setCode ?? "");
+        setNumber(scanInput.number ?? "");
+      }
+
+      if (!hasAnyScanInput(scanInput)) {
+        setScanStatus("not-found");
+        setIsEditPanelOpen(true);
+        setStatusMessage(
+          "OCR did not find enough card text. Edit the fields or retake the photo.",
+        );
         return;
       }
 
-      setName(card.name);
-      setSetCode(card.setCode);
-      setNumber(card.number);
-      setDetectedCard(card);
-      setScanStatus('found');
-      const cardmarketUrl = buildCardmarketUrlForCard(card);
-      setLastUrl(cardmarketUrl);
-      setLastUrlMode(`RiftCodex found - ${card.rarity ?? 'variant'} URL`);
-    } catch {
-      setScanStatus('not-found');
-      setError('RiftCodex lookup failed. Check your connection and try again.');
+      const statusParts: string[] = [];
+      const collectorMatch = getCollectorMatch(scanInput, photoUri);
+
+      if (
+        photoUri &&
+        collectorMatch?.card &&
+        scanInput.setCode &&
+        scanInput.number &&
+        collectorMatch.input.setCode &&
+        collectorMatch.input.number &&
+        (collectorMatch.input.setCode !== scanInput.setCode ||
+          collectorMatch.input.number !== scanInput.number)
+      ) {
+        statusParts.push(
+          `OCR read ${scanInput.setCode.toUpperCase()} ${scanInput.number}; using likely ${collectorMatch.input.setCode} ${collectorMatch.input.number}.`,
+        );
+      }
+
+      const baseCard =
+        collectorMatch?.card ?? (await findRiftCodexCardFromScan(scanInput));
+
+      if (!baseCard) {
+        const fallbackSearchUrl = buildCardmarketSearchUrl({
+          name: scanInput.name,
+        });
+        setLikelyCandidates(getStableScanCandidates(scanInput));
+        setScanStatus("not-found");
+        setLastUrl(fallbackSearchUrl ?? "");
+        setLastUrlMode(fallbackSearchUrl ? "Name search ready" : "");
+        setIsEditPanelOpen(true);
+        setStatusMessage(
+          fallbackSearchUrl
+            ? "No exact local match. You can search Cardmarket by name."
+            : "No match yet. Edit the fields or retake the photo.",
+        );
+        return;
+      }
+
+      const candidates = getStableScanCandidates(scanInput, baseCard);
+      setStatusMessage(
+        photoUri && !isSureTextMatch(baseCard, scanInput)
+          ? "Checking image..."
+          : "Checking variants...",
+      );
+      const validatedCard = await chooseValidatedCard({
+        baseCard,
+        candidates,
+        input: scanInput,
+        photoUri,
+        rarityHint,
+      });
+      const selectedCard = validatedCard.card;
+      const isValidatedCard =
+        validatedCard.isValidated ||
+        selectedCard.matchConfidence === "exact" ||
+        isExactScanMatch(selectedCard, scanInput);
+      const directUrl = isValidatedCard
+        ? buildCardmarketUrlForCard(selectedCard)
+        : undefined;
+      const fallbackSearchUrl = buildCardmarketSearchUrl({
+        name: selectedCard.name,
+      });
+      const urlToUse = directUrl ?? fallbackSearchUrl ?? "";
+
+      statusParts.push(validatedCard.reason);
+
+      setCollectionQuantity(1);
+      setCollectionPrinting(isFoilLockedCard(selectedCard) ? "foil" : "normal");
+      setCollectionMessage("");
+      setName(selectedCard.name);
+      setSetCode(selectedCard.setCode);
+      setNumber(selectedCard.number);
+      setDetectedCard(selectedCard);
+      setLikelyCandidates(candidates);
+      setCanUseExactCard(Boolean(directUrl));
+      setLastUrl(urlToUse);
+      setLastUrlMode(
+        directUrl ? "Exact Cardmarket page ready" : "Name search ready",
+      );
+      setScanStatus("found");
+      setIsEditPanelOpen(false);
+      setStatusMessage(statusParts.join(" "));
+    } catch (scanError) {
+      setScanStatus("not-found");
+      setIsEditPanelOpen(true);
+      const message = scanError instanceof Error ? scanError.message : "";
+      setStatusMessage(
+        message.includes("Native module") ||
+          message.includes("Cannot find native module")
+          ? "OCR needs a native dev build. Manual text search still works."
+          : "OCR or RiftCodex lookup failed. Edit the fields or try another photo.",
+      );
     }
   }
 
-  function handleSearchCardmarket() {
+  async function handleRetryOcr() {
+    await runScan({
+      photoUri: capturedPhotoUri || undefined,
+    });
+  }
+
+  async function handleCheckFields() {
+    await runScan({});
+  }
+
+  async function handleSeePrice() {
     if (!canSearchCardmarket) {
-      setError('Enter a card name before searching Cardmarket.');
+      setStatusMessage("Enter a card name before searching Cardmarket.");
       return;
     }
 
-    const url = detectedCard
-      ? buildCardmarketUrlForCard(detectedCard)
-      : buildCardmarketSearchUrl({ name, setCode, number });
+    setStatusMessage("Checking Cardmarket page...");
+
+    const resolvedUrl =
+      canUseExactCard && detectedCard
+        ? await getOpenableCardmarketUrlForCard(detectedCard)
+        : undefined;
+    const searchUrl = buildCardmarketSearchUrl({
+      name: detectedCard?.name ?? name,
+    });
+    const url = resolvedUrl?.url ?? searchUrl;
 
     if (!url) {
-      setError('Enter at least a card name, set, or number.');
+      setStatusMessage("No Cardmarket URL could be built.");
       return;
     }
 
-    setError('');
     setLastUrl(url);
     setLastUrlMode(
-      detectedCard
-        ? `RiftCodex found - ${detectedCard.rarity ?? 'variant'} URL`
-        : 'RiftCodex not found - name search',
+      resolvedUrl?.mode === "direct"
+        ? "Exact Cardmarket page ready"
+        : "Name search ready",
+    );
+    setStatusMessage(
+      resolvedUrl?.mode === "search"
+        ? "Exact page returned 404. Opening name search."
+        : "",
     );
     Linking.openURL(url);
   }
 
-  async function handleCopyUrl() {
-    const url =
-      lastUrl ||
-      (detectedCard
-        ? buildCardmarketUrlForCard(detectedCard)
-        : buildCardmarketSearchUrl({ name, setCode, number }));
-
-    if (!url) {
-      setError('No Cardmarket URL to copy yet.');
-      return;
-    }
-
-    await Clipboard.setStringAsync(url);
-    setLastUrl(url);
-    setLastUrlMode(
-      detectedCard
-        ? `RiftCodex found - ${detectedCard.rarity ?? 'variant'} URL`
-        : 'RiftCodex not found - name search',
-    );
-    setError('URL copied.');
-  }
-
   const captureControls = (
     <View style={styles.captureBar}>
+      <Text style={styles.captureTitle}>SCAN RIFTBOUND CARD</Text>
+      <Text style={styles.captureHint}>
+        Frame the whole card, keep glare low, then capture.
+      </Text>
       <Button
-        disabled={scanStatus === 'capturing'}
-        label={scanStatus === 'capturing' ? 'CAPTURING...' : 'CAPTURE PHOTO'}
+        disabled={isBusy}
+        label={
+          scanStatus === "capturing"
+            ? "CAPTURING..."
+            : scanStatus === "scanning"
+              ? "CHECKING..."
+              : "CAPTURE PHOTO"
+        }
         tone="orange"
         onPress={handleCapturePhoto}
       />
-      {error ? <Text style={styles.captureError}>{error}</Text> : null}
+      {statusMessage ? (
+        <Text style={styles.captureError}>{statusMessage}</Text>
+      ) : null}
     </View>
   );
 
   const reviewControls = (
-    <View style={styles.controls}>
-      {capturedPhotoUri ? (
-        <View style={styles.photoBox}>
-          <Image source={{ uri: capturedPhotoUri }} style={styles.photoPreview} />
-          <View style={styles.photoCopy}>
-            <Text style={styles.photoTitle}>Photo captured</Text>
-            <Text style={styles.photoText}>Ready for OCR</Text>
+    <View style={styles.reviewLayout}>
+      <ScrollView
+        style={styles.reviewScroll}
+        contentContainerStyle={styles.reviewContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {isCheckingScan ? (
+          <View style={styles.checkingPanel}>
+            <ActivityIndicator color="#F2B84B" size="small" />
+            <Text style={styles.checkingText}>
+              {statusMessage || "Checking card..."}
+            </Text>
           </View>
-          <Button label="RETAKE" tone="dark" style={styles.retakeButton} onPress={handleRetakePhoto} />
+        ) : null}
+
+        <View style={styles.candidatePanel}>
+          <View style={styles.candidateSummary}>
+            {candidateImageUri ? (
+              <Image
+                source={{ uri: candidateImageUri }}
+                style={styles.cardImage}
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Text style={styles.imagePlaceholderText}>No image</Text>
+              </View>
+            )}
+
+            <View style={styles.candidateInfo}>
+              <View style={styles.candidateInfoTop}>
+                <Text numberOfLines={2} style={styles.candidateName}>
+                  {displayedName || "Edit fields below"}
+                </Text>
+                <Text style={styles.candidateMeta}>
+                  {displayedMeta || "Set and number unknown"}
+                </Text>
+                {!canUseExactCard ? (
+                  <View style={[styles.confidenceBadge, styles.searchBadge]}>
+                    <Text style={styles.confidenceText}>
+                      {lastUrlMode || "Needs confirmation"}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <Button
+                disabled={!canSearchCardmarket}
+                label="CHECK CARDMARKET"
+                tone="gold"
+                style={styles.cardPriceButton}
+                onPress={handleSeePrice}
+              />
+            </View>
+          </View>
+          {canUseExactCard ? (
+            <View style={styles.priceBlock}>
+              {isPriceLoading ? (
+                <Text style={styles.priceStatusText}>Loading prices...</Text>
+              ) : priceMessage ? (
+                <Text style={styles.priceStatusText}>{priceMessage}</Text>
+              ) : (
+                <View style={styles.priceMetricRow}>
+                  <PriceMetric
+                    label="Low"
+                    value={getDisplayPrice(
+                      cardmarketPrice,
+                      "low",
+                      pricePrinting,
+                    )}
+                  />
+                  <PriceMetric
+                    label="Trend"
+                    value={getDisplayPrice(
+                      cardmarketPrice,
+                      "trend",
+                      pricePrinting,
+                    )}
+                  />
+                  <PriceMetric
+                    label="Avg"
+                    value={getDisplayPrice(
+                      cardmarketPrice,
+                      "avg",
+                      pricePrinting,
+                    )}
+                  />
+                </View>
+              )}
+            </View>
+          ) : null}
         </View>
-      ) : null}
-      <Button
-        disabled={scanStatus === 'scanning'}
-        label={scanStatus === 'scanning' ? 'CHECKING...' : 'CHECK RIFTCODEX'}
-        tone="blue"
-        onPress={handleScan}
-      />
-      {scanStatus === 'found' && detectedCard ? (
-        <View style={styles.foundBox}>
-          <Text style={styles.foundTitle}>CARD FOUND</Text>
-          <Text style={styles.foundText}>
-            {detectedCard.name} - {detectedCard.setCode} {detectedCard.number}
-          </Text>
+
+        <View style={styles.collectionPanel}>
+          <View style={styles.collectionOptions}>
+            <View style={styles.quantityControl}>
+              <Text style={styles.optionLabel}>Copies</Text>
+              <View style={styles.stepperRow}>
+                <Button
+                  disabled={collectionQuantity <= 1 || isSavingCollection}
+                  label="-"
+                  tone="dark"
+                  style={styles.stepperButton}
+                  onPress={() => updateCollectionQuantity(-1)}
+                />
+                <Text style={styles.quantityValue}>{collectionQuantity}</Text>
+                <Button
+                  disabled={isSavingCollection}
+                  label="+"
+                  tone="dark"
+                  style={styles.stepperButton}
+                  onPress={() => updateCollectionQuantity(1)}
+                />
+              </View>
+            </View>
+
+            <View style={styles.printingControl}>
+              <Text style={styles.optionLabel}>
+                {isFoilLocked ? "Foil only" : "Printing"}
+              </Text>
+              <View style={styles.segmentedControl}>
+                <Pressable
+                  disabled={isFoilLocked || isSavingCollection}
+                  onPress={() => setCollectionPrinting("normal")}
+                  style={[
+                    styles.segmentButton,
+                    activePrinting === "normal" && styles.segmentButtonActive,
+                    isFoilLocked && styles.segmentButtonDisabled,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      activePrinting === "normal" && styles.segmentTextActive,
+                    ]}
+                  >
+                    Normal
+                  </Text>
+                </Pressable>
+                <Pressable
+                  disabled={isFoilLocked || isSavingCollection}
+                  onPress={() => setCollectionPrinting("foil")}
+                  style={[
+                    styles.segmentButton,
+                    activePrinting === "foil" && styles.segmentButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      activePrinting === "foil" && styles.segmentTextActive,
+                    ]}
+                  >
+                    Foil
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+          {collectionMessage ? (
+            <Text style={styles.collectionMessage}>{collectionMessage}</Text>
+          ) : null}
+          <Button
+            disabled={!canUseExactCard || !detectedCard || isSavingCollection}
+            label={isSavingCollection ? "ADDING..." : "ADD TO COLLECTION"}
+            tone="orange"
+            onPress={handleAddToCollection}
+          />
         </View>
-      ) : null}
-      {lastUrlMode ? (
-        <View style={styles.debugBox}>
-          <Text style={styles.debugTitle}>{lastUrlMode}</Text>
-          <Text numberOfLines={2} style={styles.debugText}>
-            {lastUrl}
-          </Text>
+
+        {alternativeCandidates.length > 0 ? (
+          <View style={styles.candidateStrip}>
+            <View style={styles.candidateStripHeader}>
+              <Text style={styles.candidateStripTitle}>
+                {detectedCard ? "Other variants" : "Possible matches"}
+              </Text>
+              <Text style={styles.candidateStripHint}>Tap to switch</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.candidateStripList}
+            >
+              {alternativeCandidates.map((candidate) => {
+                return (
+                  <Pressable
+                    key={candidate.id}
+                    onPress={() => {
+                      applyCandidateCard(candidate);
+                    }}
+                    style={styles.candidateTile}
+                  >
+                    {candidate.imageUrl ? (
+                      <Image
+                        source={{ uri: candidate.imageUrl }}
+                        style={styles.candidateTileImage}
+                      />
+                    ) : (
+                      <View style={styles.candidateTileImagePlaceholder}>
+                        <Text style={styles.imagePlaceholderText}>
+                          No image
+                        </Text>
+                      </View>
+                    )}
+                    <Text numberOfLines={1} style={styles.candidateTileName}>
+                      {candidate.name}
+                    </Text>
+                    <Text style={styles.candidateTileMeta}>
+                      {candidate.setCode} {candidate.number}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {statusMessage ? (
+          <Text style={styles.statusMessage}>{statusMessage}</Text>
+        ) : null}
+
+        <View style={styles.editDropdownPanel}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setIsEditPanelOpen((currentValue) => !currentValue);
+            }}
+            style={styles.editToggle}
+          >
+            <Text style={styles.editToggleText}>
+              Not right? Edit and check again
+            </Text>
+            <Text style={styles.editToggleIcon}>
+              {isEditPanelOpen ? "-" : "+"}
+            </Text>
+          </Pressable>
+
+          {isEditPanelOpen ? (
+            <View style={styles.inlineEditPanel}>
+              <TextInput
+                autoCapitalize="words"
+                blurOnSubmit
+                onChangeText={(value) => {
+                  setName(value);
+                  handleEditedFields();
+                }}
+                placeholder="Card name"
+                placeholderTextColor="#667085"
+                returnKeyType="done"
+                style={styles.input}
+                value={name}
+              />
+              <View style={styles.row}>
+                <TextInput
+                  autoCapitalize="characters"
+                  blurOnSubmit
+                  maxLength={6}
+                  onChangeText={(value) => {
+                    setSetCode(value);
+                    handleEditedFields();
+                  }}
+                  placeholder="Set"
+                  placeholderTextColor="#667085"
+                  returnKeyType="done"
+                  style={[styles.input, styles.compactInput]}
+                  value={setCode}
+                />
+                <TextInput
+                  blurOnSubmit
+                  maxLength={8}
+                  onChangeText={(value) => {
+                    setNumber(value);
+                    handleEditedFields();
+                  }}
+                  placeholder="No."
+                  placeholderTextColor="#667085"
+                  returnKeyType="done"
+                  style={[styles.input, styles.compactInput]}
+                  value={number}
+                />
+              </View>
+              <View style={styles.row}>
+                <Button
+                  disabled={isBusy}
+                  label={
+                    scanStatus === "scanning" ? "CHECKING..." : "CHECK FIELDS"
+                  }
+                  tone="gold"
+                  style={styles.actionButton}
+                  onPress={handleCheckFields}
+                />
+                <Button
+                  disabled={isBusy || !capturedPhotoUri}
+                  label="RETRY SCAN"
+                  tone="blue"
+                  style={styles.actionButton}
+                  onPress={handleRetryOcr}
+                />
+              </View>
+            </View>
+          ) : null}
         </View>
-      ) : null}
-      <TextInput
-        autoCapitalize="words"
-        blurOnSubmit
-        onChangeText={setName}
-        placeholder="Card name"
-        placeholderTextColor="#555"
-        returnKeyType="done"
-        style={styles.input}
-        value={name}
-      />
-      <View style={styles.row}>
-        <TextInput
-          autoCapitalize="characters"
-          blurOnSubmit
-          maxLength={6}
-          onChangeText={setSetCode}
-          placeholder="Set"
-          placeholderTextColor="#555"
-          returnKeyType="done"
-          style={[styles.input, styles.compactInput]}
-          value={setCode}
-        />
-        <TextInput
-          blurOnSubmit
-          maxLength={8}
-          onChangeText={setNumber}
-          placeholder="No."
-          placeholderTextColor="#555"
-          returnKeyType="done"
-          style={[styles.input, styles.compactInput]}
-          value={number}
-        />
-      </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <View style={styles.row}>
+      </ScrollView>
+
+      <View style={styles.reviewFooter}>
         <Button
-          disabled={!canSearchCardmarket}
-          label="SEARCH"
-          tone="gold"
-          style={styles.actionButton}
-          onPress={handleSearchCardmarket}
-        />
-        <Button
-          disabled={!canSearchCardmarket && !lastUrl}
-          label="COPY URL"
-          tone="blue"
-          style={styles.actionButton}
-          onPress={handleCopyUrl}
+          label="NEW SCAN"
+          tone="dark"
+          style={styles.newScanButton}
+          onPress={handleRetakePhoto}
         />
       </View>
     </View>
@@ -261,7 +791,6 @@ export default function ScanScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.message}>Loading camera...</Text>
-        {isReviewingPhoto ? reviewControls : captureControls}
       </View>
     );
   }
@@ -269,16 +798,17 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.message}>Camera access is needed to scan cards.</Text>
+        <Text style={styles.message}>
+          Camera access is needed to scan cards.
+        </Text>
         <Button label="ALLOW CAMERA" onPress={requestPermission} />
-        {isReviewingPhoto ? reviewControls : captureControls}
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
       <CameraView ref={cameraRef} style={styles.camera} facing="back" />
@@ -289,165 +819,3 @@ export default function ScanScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#071527',
-  },
-  camera: {
-    flex: 1,
-  },
-  capturePanel: {
-    position: 'absolute',
-    right: 18,
-    bottom: 24,
-    left: 18,
-  },
-  captureBar: {
-    gap: 10,
-  },
-  captureError: {
-    borderWidth: 2,
-    borderColor: '#F8F0DC',
-    borderRadius: 12,
-    padding: 10,
-    backgroundColor: '#E66A2C',
-    color: '#F8F0DC',
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  reviewPanel: {
-    position: 'absolute',
-    right: 18,
-    bottom: 24,
-    left: 18,
-    borderWidth: 2,
-    borderColor: '#F8F0DC',
-    borderRadius: 16,
-    padding: 12,
-    backgroundColor: 'rgba(9, 42, 76, 0.96)',
-  },
-  controls: {
-    gap: 10,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  input: {
-    borderWidth: 2,
-    borderColor: '#F2B84B',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#F8F0DC',
-    color: '#071527',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  compactInput: {
-    flex: 1,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  error: {
-    borderWidth: 2,
-    borderColor: '#F8F0DC',
-    borderRadius: 12,
-    padding: 10,
-    backgroundColor: '#E66A2C',
-    color: '#F8F0DC',
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  foundBox: {
-    borderWidth: 2,
-    borderColor: '#F2B84B',
-    borderRadius: 12,
-    padding: 10,
-    backgroundColor: '#123F6D',
-  },
-  foundTitle: {
-    color: '#F2B84B',
-    fontSize: 13,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  foundText: {
-    marginTop: 2,
-    color: '#F8F0DC',
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  photoBox: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    borderWidth: 2,
-    borderColor: '#F2B84B',
-    borderRadius: 12,
-    padding: 8,
-    backgroundColor: '#123F6D',
-  },
-  photoPreview: {
-    width: 42,
-    height: 58,
-    borderRadius: 8,
-    backgroundColor: '#071527',
-  },
-  photoCopy: {
-    flex: 1,
-  },
-  photoTitle: {
-    color: '#F2B84B',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  photoText: {
-    color: '#F8F0DC',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  retakeButton: {
-    minWidth: 88,
-    paddingHorizontal: 10,
-  },
-  debugBox: {
-    borderWidth: 2,
-    borderColor: '#F8F0DC',
-    borderRadius: 12,
-    padding: 10,
-    backgroundColor: '#092A4C',
-  },
-  debugTitle: {
-    color: '#F2B84B',
-    fontSize: 12,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  debugText: {
-    marginTop: 4,
-    color: '#F8F0DC',
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  centered: {
-    flex: 1,
-    gap: 18,
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#071527',
-  },
-  message: {
-    color: '#F8F0DC',
-    fontSize: 22,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-});

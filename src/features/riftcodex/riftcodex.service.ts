@@ -47,94 +47,66 @@ function normalizeText(value: string) {
 
 export function normalizeCollectorNumber(value: string) {
   const firstPart = value.trim().split('/')[0]?.trim() ?? '';
-  const normalized = firstPart.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const normalized = firstPart.replace(/[^a-zA-Z0-9*]/g, '').toUpperCase();
 
-  if (/^\d{1,2}$/.test(normalized)) {
-    return normalized.padStart(3, '0');
+  if (/^\d{1,2}\*?$/.test(normalized)) {
+    return normalized.padStart(normalized.endsWith('*') ? 4 : 3, '0');
   }
 
   return normalized;
 }
 
-function getCardmarketPath(name: string) {
-  const slug = name
-    .replace(/\s+\(Alternate Art\)$/i, '')
-    .replace(/\s+\(Overnumbered\)$/i, '')
-    .replace(/\s+\(Signature\)$/i, '')
-    .replace(/\s+\(Metal\)$/i, '')
-    .replace(/'/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+function collectorNumberMatches(card: RiftCodexCard, targetNumber: string) {
+  const cardNumber = normalizeCollectorNumber(getPrintedNumber(card));
 
-  return `/en/Riftbound/Cards/${slug}`;
+  if (cardNumber === targetNumber) {
+    return true;
+  }
+
+  if (!targetNumber.endsWith('*')) {
+    return false;
+  }
+
+  const baseTargetNumber = targetNumber.slice(0, -1);
+  return cardNumber === baseTargetNumber && Boolean(card.metadata?.overnumbered);
 }
 
-function getCardmarketExpansionPath(card: RiftCodexCard) {
-  const setCode = getSetCode(card);
-  const label = card.set?.label ?? '';
-
-  if (setCode === 'OGN') {
-    return 'Origins';
-  }
-
-  if (setCode === 'UNL') {
-    return 'Unleashed';
-  }
-
-  if (setCode === 'SFD') {
-    return 'Spiritforged';
-  }
-
-  if (setCode === 'OPP' || label.toLowerCase().includes('promo')) {
-    return 'Origins-Promos';
-  }
-
-  return label
-    .replace(/[:]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+function nameMatches(card: RiftCodexCard, targetName: string) {
+  const cardName = normalizeText(card.name);
+  const cleanName = normalizeText(card.metadata?.clean_name ?? card.name);
+  return cardName.includes(targetName) || cleanName.includes(targetName);
 }
 
-function getCardmarketProductSlug(card: RiftCodexCard) {
-  const baseSlug = card.name
-    .replace(/\s+\(Alternate Art\)$/i, '')
-    .replace(/\s+\(Overnumbered\)$/i, '')
-    .replace(/\s+\(Signature\)$/i, '')
-    .replace(/\s+\(Metal\)$/i, '')
-    .replace(/'/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+function scoreNameCandidate(card: RiftCodexCard, input: {
+  targetName: string;
+  targetNumber: string;
+  targetSetCode: string;
+}) {
+  const cardName = normalizeText(card.name);
+  const cleanName = normalizeText(card.metadata?.clean_name ?? card.name);
+  let score = 0;
 
-  if (card.metadata?.signature) {
-    return `${baseSlug}-V3-Signed-Showcase`;
+  if (cleanName === input.targetName || cardName === input.targetName) {
+    score += 100;
+  } else if (nameMatches(card, input.targetName)) {
+    score += 60;
   }
 
-  if (card.metadata?.overnumbered) {
-    return `${baseSlug}-V2-Overnumbered`;
+  if (input.targetSetCode && getSetCode(card) === input.targetSetCode) {
+    score += 20;
   }
 
-  if (card.metadata?.alternate_art || card.classification?.rarity === 'Showcase') {
-    return `${baseSlug}-V2-Showcase`;
+  if (input.targetNumber && collectorNumberMatches(card, input.targetNumber)) {
+    score += 10;
   }
 
-  if (card.classification?.rarity) {
-    return `${baseSlug}-V1-${card.classification.rarity}`;
-  }
-
-  return baseSlug;
+  return score;
 }
 
-function getCardmarketSinglesPath(card: RiftCodexCard) {
-  const expansion = getCardmarketExpansionPath(card);
-
-  if (!expansion) {
-    return getCardmarketPath(card.name);
-  }
-
-  return `/en/Riftbound/Products/Singles/${expansion}/${getCardmarketProductSlug(card)}`;
-}
-
-export function mapRiftCodexCard(card: RiftCodexCard): RiftboundCard {
+export function mapRiftCodexCard(
+  card: RiftCodexCard,
+  matchConfidence: RiftboundCard['matchConfidence'] = 'exact',
+): RiftboundCard {
   const domain = card.classification?.domain?.[0] ?? card.classification?.rarity ?? 'Unknown';
 
   return {
@@ -148,11 +120,11 @@ export function mapRiftCodexCard(card: RiftCodexCard): RiftboundCard {
     cost: card.attributes?.energy ?? 0,
     type: card.classification?.type ?? 'Card',
     imageUrl: card.media?.image_url,
-    cardmarketPath: getCardmarketSinglesPath(card),
     rarity: card.classification?.rarity ?? undefined,
     alternateArt: card.metadata?.alternate_art,
     overnumbered: card.metadata?.overnumbered,
     signature: card.metadata?.signature,
+    matchConfidence,
   };
 }
 
@@ -173,7 +145,7 @@ export async function fetchRiftCodexCards(query = '', limit = 40) {
   }
 
   const data = (await response.json()) as RiftCodexCardsResponse;
-  return (data.items ?? []).map(mapRiftCodexCard);
+  return (data.items ?? []).map((card) => mapRiftCodexCard(card));
 }
 
 async function fetchRiftCodexPage(page: number, limit = 50, setCode?: string) {
@@ -190,6 +162,23 @@ async function fetchRiftCodexPage(page: number, limit = 50, setCode?: string) {
 
   if (!response.ok) {
     throw new Error(`RiftCodex request failed with ${response.status}`);
+  }
+
+  const data = (await response.json()) as RiftCodexCardsResponse;
+  return data.items ?? [];
+}
+
+async function fetchRiftCodexCardsByName(query: string, limit = 50) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    page: '1',
+    name: query.trim(),
+  });
+
+  const response = await fetch(`${RIFTCODEX_CARDS_URL}?${params.toString()}`);
+
+  if (!response.ok) {
+    return [];
   }
 
   const data = (await response.json()) as RiftCodexCardsResponse;
@@ -218,15 +207,60 @@ export async function findRiftCodexCardFromScan(input: CardScanInput) {
     return undefined;
   }
 
-  if (targetSetCode && targetNumber) {
+  if (targetName) {
+    const nameCandidates = await fetchRiftCodexCardsByName(input.name ?? '', 80);
+    const filteredNameCandidates = nameCandidates.filter((card) => {
+      const setMatches = targetSetCode ? getSetCode(card) === targetSetCode : true;
+      return setMatches && nameMatches(card, targetName);
+    });
+    const exactNameCandidates = filteredNameCandidates.filter((card) => {
+      const cardName = normalizeText(card.name);
+      const cleanName = normalizeText(card.metadata?.clean_name ?? card.name);
+      return cardName === targetName || cleanName === targetName;
+    });
+    const exactCollectorCandidate = filteredNameCandidates.find((card) => {
+      const setMatches = targetSetCode ? getSetCode(card) === targetSetCode : true;
+      const numberMatches = targetNumber ? collectorNumberMatches(card, targetNumber) : false;
+
+      return setMatches && numberMatches;
+    });
+
+    if (exactCollectorCandidate) {
+      return mapRiftCodexCard(exactCollectorCandidate, 'exact');
+    }
+
+    const bestNameMatch = filteredNameCandidates
+      .map((card) => ({
+        card,
+        score: scoreNameCandidate(card, {
+          targetName,
+          targetNumber,
+          targetSetCode,
+        }),
+      }))
+      .sort((a, b) => b.score - a.score)[0];
+
+    if (bestNameMatch?.score >= 60) {
+      const collectorMatches = targetNumber
+        ? collectorNumberMatches(bestNameMatch.card, targetNumber)
+        : false;
+      const confidence =
+        collectorMatches || exactNameCandidates.length === 1 ? 'exact' : 'name-only';
+
+      return mapRiftCodexCard(bestNameMatch.card, confidence);
+    }
+  }
+
+  if (!targetName && targetSetCode && targetNumber) {
     const directMatch = await fetchRiftCodexCardByPrintedId(targetSetCode, targetNumber);
 
     if (directMatch) {
-      return mapRiftCodexCard(directMatch);
+      return mapRiftCodexCard(directMatch, 'collector-only');
     }
   }
 
   const maxPages = targetSetCode ? 8 : 20;
+  let fallbackCollectorMatch: RiftCodexCard | undefined;
 
   for (let page = 1; page <= maxPages; page += 1) {
     const pageCards = await fetchRiftCodexPage(page, 50, targetSetCode);
@@ -237,15 +271,17 @@ export async function findRiftCodexCardFromScan(input: CardScanInput) {
 
     const exactCollectorMatch = pageCards.find((card) => {
       const setMatches = targetSetCode ? getSetCode(card) === targetSetCode : true;
-      const numberMatches = targetNumber
-        ? normalizeCollectorNumber(getPrintedNumber(card)) === targetNumber
-        : true;
+      const numberMatches = targetNumber ? collectorNumberMatches(card, targetNumber) : true;
 
       return setMatches && numberMatches;
     });
 
     if (exactCollectorMatch && (targetSetCode || targetNumber)) {
-      return mapRiftCodexCard(exactCollectorMatch);
+      if (!targetName) {
+        return mapRiftCodexCard(exactCollectorMatch, 'collector-only');
+      }
+
+      fallbackCollectorMatch ??= exactCollectorMatch;
     }
 
     const nameMatch = pageCards.find((card) => {
@@ -259,8 +295,20 @@ export async function findRiftCodexCardFromScan(input: CardScanInput) {
     });
 
     if (nameMatch) {
-      return mapRiftCodexCard(nameMatch);
+      const exactCollectorMatchForName = targetNumber
+        ? collectorNumberMatches(nameMatch, targetNumber)
+        : false;
+      const exactSetMatchForName = targetSetCode ? getSetCode(nameMatch) === targetSetCode : true;
+
+      return mapRiftCodexCard(
+        nameMatch,
+        exactCollectorMatchForName && exactSetMatchForName ? 'exact' : 'name-only',
+      );
     }
+  }
+
+  if (fallbackCollectorMatch) {
+    return mapRiftCodexCard(fallbackCollectorMatch, 'collector-only');
   }
 
   return undefined;

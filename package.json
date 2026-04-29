@@ -1,19 +1,25 @@
 {
   "name": "riftbound-app",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "./index.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "generate:cardmarket-candidates": "node scripts/generate-cardmarket-candidates.mjs"
   },
   "dependencies": {
+    "@react-native-ml-kit/text-recognition": "^2.0.0",
+    "buffer": "^6.0.3",
     "expo": "~54.0.33",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
+    "expo-file-system": "~19.0.22",
+    "expo-image-manipulator": "~14.0.8",
     "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",
+    "jpeg-js": "^0.4.4",
     "react": "19.1.0",
     "react-dom": "^19.1.0",
     "react-native": "0.81.5",

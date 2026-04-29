@@ -22,6 +22,11 @@ export function CardPreview({ card, showImage = false }: CardPreviewProps) {
         color: card.color,
         cost: String(card.cost),
         type: card.type,
+        rarity: card.rarity ?? '',
+        alternateArt: card.alternateArt ? 'true' : '',
+        overnumbered: card.overnumbered ? 'true' : '',
+        signature: card.signature ? 'true' : '',
+        matchConfidence: card.matchConfidence ?? '',
         imageUrl: card.imageUrl ?? '',
       },
     });
