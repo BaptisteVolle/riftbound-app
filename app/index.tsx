@@ -9,8 +9,8 @@ export default function HomeScreen() {
       <Pressable onPress={() => router.push('/scan')} style={[styles.button, styles.yellow]}>
         <Text style={styles.buttonText}>SCAN CARD</Text>
       </Pressable>
-      <Pressable onPress={() => router.push('/search')} style={[styles.button, styles.pink]}>
-        <Text style={styles.buttonText}>SEARCH</Text>
+      <Pressable onPress={() => router.push('/cardex')} style={[styles.button, styles.yellow]}>
+        <Text style={styles.buttonText}>CARDEX</Text>
       </Pressable>
       <Pressable onPress={() => router.push('/collection')} style={[styles.button, styles.blue]}>
         <Text style={styles.buttonText}>COLLECTION</Text>

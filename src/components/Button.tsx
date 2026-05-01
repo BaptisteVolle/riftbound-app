@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
 
 type ButtonProps = {
   label: string;
@@ -6,9 +6,17 @@ type ButtonProps = {
   disabled?: boolean;
   tone?: 'gold' | 'orange' | 'blue' | 'dark' | 'yellow' | 'pink';
   style?: ViewStyle;
+  labelStyle?: TextStyle;
 };
 
-export function Button({ label, onPress, disabled, tone = 'gold', style }: ButtonProps) {
+export function Button({
+  label,
+  onPress,
+  disabled,
+  tone = 'gold',
+  style,
+  labelStyle,
+}: ButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -22,7 +30,7 @@ export function Button({ label, onPress, disabled, tone = 'gold', style }: Butto
         style,
       ]}
     >
-      <Text style={[styles.label, tone === 'dark' && styles.lightLabel]}>{label}</Text>
+      <Text style={[styles.label, tone === 'dark' && styles.lightLabel, labelStyle]}>{label}</Text>
     </Pressable>
   );
 }

@@ -7,14 +7,16 @@ import { RiftboundCard } from '../features/cards/cards.types';
 type CardPreviewProps = {
   card: RiftboundCard;
   showImage?: boolean;
+  contextIds?: string[];
 };
 
-export function CardPreview({ card, showImage = false }: CardPreviewProps) {
+export function CardPreview({ card, showImage = false, contextIds }: CardPreviewProps) {
   function handleOpenCard() {
     router.push({
       pathname: '/card/[id]',
       params: {
         id: card.id,
+        ids: contextIds?.join(',') ?? '',
         name: card.name,
         set: card.set,
         setCode: card.setCode,

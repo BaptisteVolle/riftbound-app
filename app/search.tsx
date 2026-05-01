@@ -1,6 +1,8 @@
+import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Button } from '../src/components/Button';
 import { CardPreview } from '../src/components/CardPreview';
 import { getAllCards } from '../src/features/cards/cards.service';
 import { RiftboundCard } from '../src/features/cards/cards.types';
@@ -73,10 +75,15 @@ export default function SearchScreen() {
       )
       .slice(0, 40);
   }, [cards, query]);
+  const resultIds = useMemo(() => results.map((card) => card.id), [results]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>SEARCH CARDS</Text>
+      <View style={styles.topActions}>
+        <Button label="SCAN" tone="orange" style={styles.topButton} onPress={() => router.push('/scan')} />
+        <Button label="CARDEX" tone="blue" style={styles.topButton} onPress={() => router.push('/cardex')} />
+      </View>
       <Text style={styles.source}>{sourceLabel}</Text>
       {isLoading ? <Text style={styles.source}>Loading...</Text> : null}
       <TextInput
@@ -91,7 +98,7 @@ export default function SearchScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.results}>
         {results.map((card) => (
-          <CardPreview card={card} key={card.id} />
+          <CardPreview card={card} contextIds={resultIds} key={card.id} />
         ))}
       </View>
     </ScrollView>
@@ -125,6 +132,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 6, height: 6 },
     shadowOpacity: 1,
     shadowRadius: 0,
+  },
+  topActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  topButton: {
+    flex: 1,
+    borderColor: '#111',
   },
   source: {
     color: '#111',

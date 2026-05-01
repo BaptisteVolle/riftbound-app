@@ -62,6 +62,25 @@ function PriceMetric({
   );
 }
 
+function hasPositivePrice(value?: number | null) {
+  return typeof value === "number" && value > 0;
+}
+
+function isPriceFoilOnly(price?: CardmarketPriceSummary) {
+  if (!price) {
+    return false;
+  }
+
+  const hasFoilPrice =
+    hasPositivePrice(price.avgFoil) ||
+    hasPositivePrice(price.trendFoil) ||
+    hasPositivePrice(price.lowFoil);
+  const hasNormalMarketPrice =
+    hasPositivePrice(price.avg) || hasPositivePrice(price.trend);
+
+  return hasFoilPrice && !hasNormalMarketPrice;
+}
+
 export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -88,6 +107,7 @@ export default function ScanScreen() {
     useState<CardmarketPriceSummary>();
   const [isPriceLoading, setIsPriceLoading] = useState(false);
   const [priceMessage, setPriceMessage] = useState("");
+  const [isCameraReady, setIsCameraReady] = useState(false);
 
   const isReviewingPhoto = Boolean(capturedPhotoUri);
   const canSearchCardmarket = Boolean(name.trim() || detectedCard?.name);
@@ -96,15 +116,30 @@ export default function ScanScreen() {
   const displayedMeta = detectedCard
     ? `${detectedCard.setCode} ${detectedCard.number}`
     : [setCode, number].filter(Boolean).join(" ");
+  const displayedTitle = [displayedName, displayedMeta].filter(Boolean).join(" | ");
   const isBusy = scanStatus === "capturing" || scanStatus === "scanning";
   const isCheckingScan = scanStatus === "scanning";
-  const isFoilLocked = isFoilLockedCard(detectedCard);
+  const isFoilOnlyPrice = isPriceFoilOnly(cardmarketPrice);
+  const isFoilLocked = isFoilLockedCard(detectedCard) || isFoilOnlyPrice;
   const activePrinting = isFoilLocked ? "foil" : collectionPrinting;
   const pricePrinting = activePrinting;
+  const shouldShowReviewStatus = Boolean(statusMessage && scanStatus !== "found");
   const alternativeCandidates = getVisibleAlternativeCandidates(
     likelyCandidates,
     detectedCard,
   );
+
+  function getErrorMessage(error: unknown) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === "string") {
+      return error;
+    }
+
+    return "";
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -147,6 +182,22 @@ export default function ScanScreen() {
     };
   }, [canUseExactCard, detectedCard]);
 
+  useEffect(() => {
+    if (!detectedCard || !canUseExactCard) {
+      return;
+    }
+
+    const directUrl = buildCardmarketUrlForCard(detectedCard, {
+      printing: activePrinting,
+    });
+    const fallbackUrl = buildCardmarketSearchUrl({ name: detectedCard.name });
+
+    setLastUrl(directUrl ?? fallbackUrl ?? "");
+    setLastUrlMode(
+      directUrl ? "Exact Cardmarket page ready" : "Name search ready",
+    );
+  }, [activePrinting, canUseExactCard, detectedCard]);
+
   function resetScanResult() {
     setDetectedCard(undefined);
     setLastUrl("");
@@ -164,6 +215,7 @@ export default function ScanScreen() {
   }
 
   function handleRetakePhoto() {
+    setIsCameraReady(false);
     setCapturedPhotoUri("");
     setName("");
     setSetCode("");
@@ -185,11 +237,14 @@ export default function ScanScreen() {
   }
 
   function applyCandidateCard(card: RiftboundCard, message = "") {
-    const directUrl = buildCardmarketUrlForCard(card);
+    const nextPrinting = isFoilLockedCard(card) ? "foil" : "normal";
+    const directUrl = buildCardmarketUrlForCard(card, {
+      printing: nextPrinting,
+    });
     const fallbackUrl = buildCardmarketSearchUrl({ name: card.name });
 
     setCollectionQuantity(1);
-    setCollectionPrinting(isFoilLockedCard(card) ? "foil" : "normal");
+    setCollectionPrinting(nextPrinting);
     setCollectionMessage("");
     setName(card.name);
     setSetCode(card.setCode);
@@ -244,6 +299,21 @@ export default function ScanScreen() {
   }
 
   async function handleCapturePhoto() {
+    if (!permission?.granted) {
+      setStatusMessage("Camera permission is not granted yet.");
+      return;
+    }
+
+    if (!cameraRef.current) {
+      setStatusMessage("Camera is still mounting. Try again in a moment.");
+      return;
+    }
+
+    if (!isCameraReady) {
+      setStatusMessage("Camera is still warming up. Try again in a moment.");
+      return;
+    }
+
     setScanStatus("capturing");
     resetScanResult();
     setName("");
@@ -264,9 +334,13 @@ export default function ScanScreen() {
 
       setCapturedPhotoUri(photo.uri);
       await runScan({ photoUri: photo.uri });
-    } catch {
+    } catch (captureError) {
       setScanStatus("not-found");
-      setStatusMessage("Camera capture failed. Try again.");
+      const message = getErrorMessage(captureError);
+      console.warn("Camera capture failed", captureError);
+      setStatusMessage(
+        message ? `Camera capture failed: ${message}` : "Camera capture failed. Try again.",
+      );
     }
   }
 
@@ -363,8 +437,9 @@ export default function ScanScreen() {
         validatedCard.isValidated ||
         selectedCard.matchConfidence === "exact" ||
         isExactScanMatch(selectedCard, scanInput);
+      const nextPrinting = isFoilLockedCard(selectedCard) ? "foil" : "normal";
       const directUrl = isValidatedCard
-        ? buildCardmarketUrlForCard(selectedCard)
+        ? buildCardmarketUrlForCard(selectedCard, { printing: nextPrinting })
         : undefined;
       const fallbackSearchUrl = buildCardmarketSearchUrl({
         name: selectedCard.name,
@@ -374,7 +449,7 @@ export default function ScanScreen() {
       statusParts.push(validatedCard.reason);
 
       setCollectionQuantity(1);
-      setCollectionPrinting(isFoilLockedCard(selectedCard) ? "foil" : "normal");
+      setCollectionPrinting(nextPrinting);
       setCollectionMessage("");
       setName(selectedCard.name);
       setSetCode(selectedCard.setCode);
@@ -422,7 +497,9 @@ export default function ScanScreen() {
 
     const resolvedUrl =
       canUseExactCard && detectedCard
-        ? await getOpenableCardmarketUrlForCard(detectedCard)
+        ? await getOpenableCardmarketUrlForCard(detectedCard, {
+            printing: activePrinting,
+          })
         : undefined;
     const searchUrl = buildCardmarketSearchUrl({
       name: detectedCard?.name ?? name,
@@ -455,12 +532,14 @@ export default function ScanScreen() {
         Frame the whole card, keep glare low, then capture.
       </Text>
       <Button
-        disabled={isBusy}
+        disabled={isBusy || !isCameraReady}
         label={
           scanStatus === "capturing"
             ? "CAPTURING..."
             : scanStatus === "scanning"
               ? "CHECKING..."
+              : !isCameraReady
+                ? "CAMERA WARMING UP..."
               : "CAPTURE PHOTO"
         }
         tone="orange"
@@ -490,7 +569,11 @@ export default function ScanScreen() {
         ) : null}
 
         <View style={styles.candidatePanel}>
-          <View style={styles.candidateSummary}>
+          <Text numberOfLines={2} style={styles.resultTitle}>
+            {displayedTitle || "Edit fields below"}
+          </Text>
+
+          <View style={styles.cardImageWrap}>
             {candidateImageUri ? (
               <Image
                 source={{ uri: candidateImageUri }}
@@ -501,32 +584,8 @@ export default function ScanScreen() {
                 <Text style={styles.imagePlaceholderText}>No image</Text>
               </View>
             )}
-
-            <View style={styles.candidateInfo}>
-              <View style={styles.candidateInfoTop}>
-                <Text numberOfLines={2} style={styles.candidateName}>
-                  {displayedName || "Edit fields below"}
-                </Text>
-                <Text style={styles.candidateMeta}>
-                  {displayedMeta || "Set and number unknown"}
-                </Text>
-                {!canUseExactCard ? (
-                  <View style={[styles.confidenceBadge, styles.searchBadge]}>
-                    <Text style={styles.confidenceText}>
-                      {lastUrlMode || "Needs confirmation"}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <Button
-                disabled={!canSearchCardmarket}
-                label="CHECK CARDMARKET"
-                tone="gold"
-                style={styles.cardPriceButton}
-                onPress={handleSeePrice}
-              />
-            </View>
           </View>
+
           {canUseExactCard ? (
             <View style={styles.priceBlock}>
               {isPriceLoading ? (
@@ -544,14 +603,6 @@ export default function ScanScreen() {
                     )}
                   />
                   <PriceMetric
-                    label="Trend"
-                    value={getDisplayPrice(
-                      cardmarketPrice,
-                      "trend",
-                      pricePrinting,
-                    )}
-                  />
-                  <PriceMetric
                     label="Avg"
                     value={getDisplayPrice(
                       cardmarketPrice,
@@ -559,13 +610,74 @@ export default function ScanScreen() {
                       pricePrinting,
                     )}
                   />
+                  <PriceMetric
+                    label="Trend"
+                    value={getDisplayPrice(
+                      cardmarketPrice,
+                      "trend",
+                      pricePrinting,
+                    )}
+                  />
                 </View>
               )}
             </View>
           ) : null}
-        </View>
 
-        <View style={styles.collectionPanel}>
+          <View style={styles.resultActionRow}>
+            {canUseExactCard ? (
+              <View style={styles.printingControl}>
+                <Text style={styles.optionLabel}>
+                  {isFoilLocked ? "Foil only" : "Printing"}
+                </Text>
+                <View style={styles.segmentedControl}>
+                  <Pressable
+                    disabled={isFoilLocked || isSavingCollection}
+                    onPress={() => setCollectionPrinting("normal")}
+                    style={[
+                      styles.segmentButton,
+                      activePrinting === "normal" && styles.segmentButtonActive,
+                      isFoilLocked && styles.segmentButtonDisabled,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        activePrinting === "normal" && styles.segmentTextActive,
+                      ]}
+                    >
+                      Normal
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={isFoilLocked || isSavingCollection}
+                    onPress={() => setCollectionPrinting("foil")}
+                    style={[
+                      styles.segmentButton,
+                      activePrinting === "foil" && styles.segmentButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        activePrinting === "foil" && styles.segmentTextActive,
+                      ]}
+                    >
+                      Foil
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+            <Button
+              disabled={!canSearchCardmarket}
+              label="OPEN CARDMARKET"
+              tone="gold"
+              labelStyle={styles.cardPriceButtonLabel}
+              style={styles.cardPriceButton}
+              onPress={handleSeePrice}
+            />
+          </View>
+
           <View style={styles.collectionOptions}>
             <View style={styles.quantityControl}>
               <Text style={styles.optionLabel}>Copies</Text>
@@ -587,59 +699,26 @@ export default function ScanScreen() {
                 />
               </View>
             </View>
-
-            <View style={styles.printingControl}>
-              <Text style={styles.optionLabel}>
-                {isFoilLocked ? "Foil only" : "Printing"}
-              </Text>
-              <View style={styles.segmentedControl}>
-                <Pressable
-                  disabled={isFoilLocked || isSavingCollection}
-                  onPress={() => setCollectionPrinting("normal")}
-                  style={[
-                    styles.segmentButton,
-                    activePrinting === "normal" && styles.segmentButtonActive,
-                    isFoilLocked && styles.segmentButtonDisabled,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      activePrinting === "normal" && styles.segmentTextActive,
-                    ]}
-                  >
-                    Normal
-                  </Text>
-                </Pressable>
-                <Pressable
-                  disabled={isFoilLocked || isSavingCollection}
-                  onPress={() => setCollectionPrinting("foil")}
-                  style={[
-                    styles.segmentButton,
-                    activePrinting === "foil" && styles.segmentButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      activePrinting === "foil" && styles.segmentTextActive,
-                    ]}
-                  >
-                    Foil
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+            <Button
+              disabled={!canUseExactCard || !detectedCard || isSavingCollection}
+              label={isSavingCollection ? "ADDING..." : "ADD TO COLLECTION"}
+              tone="orange"
+              labelStyle={styles.collectionAddButtonLabel}
+              style={styles.collectionAddButton}
+              onPress={handleAddToCollection}
+            />
           </View>
           {collectionMessage ? (
             <Text style={styles.collectionMessage}>{collectionMessage}</Text>
           ) : null}
-          <Button
-            disabled={!canUseExactCard || !detectedCard || isSavingCollection}
-            label={isSavingCollection ? "ADDING..." : "ADD TO COLLECTION"}
-            tone="orange"
-            onPress={handleAddToCollection}
-          />
+
+          {!canUseExactCard ? (
+            <View style={[styles.confidenceBadge, styles.searchBadge]}>
+              <Text style={styles.confidenceText}>
+                {lastUrlMode || "Needs confirmation"}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {alternativeCandidates.length > 0 ? (
@@ -689,7 +768,7 @@ export default function ScanScreen() {
           </View>
         ) : null}
 
-        {statusMessage ? (
+        {shouldShowReviewStatus ? (
           <Text style={styles.statusMessage}>{statusMessage}</Text>
         ) : null}
 
@@ -779,7 +858,8 @@ export default function ScanScreen() {
       <View style={styles.reviewFooter}>
         <Button
           label="NEW SCAN"
-          tone="dark"
+          tone="orange"
+          labelStyle={styles.newScanButtonLabel}
           style={styles.newScanButton}
           onPress={handleRetakePhoto}
         />
@@ -811,7 +891,22 @@ export default function ScanScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+      {!isReviewingPhoto ? (
+        <CameraView
+          ref={cameraRef}
+          active
+          facing="back"
+          onCameraReady={() => {
+            setIsCameraReady(true);
+            setStatusMessage("");
+          }}
+          onMountError={({ message }) => {
+            setIsCameraReady(false);
+            setStatusMessage(`Camera failed to start: ${message}`);
+          }}
+          style={styles.camera}
+        />
+      ) : null}
       {!isReviewingPhoto ? <ScannerOverlay /> : null}
       <View style={isReviewingPhoto ? styles.reviewPanel : styles.capturePanel}>
         {isReviewingPhoto ? reviewControls : captureControls}

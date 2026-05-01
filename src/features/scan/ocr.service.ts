@@ -1,6 +1,4 @@
 import { CardScanInput } from '../cards/cards.types';
-import { cardmarketCandidates } from '../cardmarket/cardmarket-candidates.data';
-import { cardmarketOverrides } from '../cardmarket/cardmarket-overrides.data';
 import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 import type { TextLine, TextRecognitionResult } from '@react-native-ml-kit/text-recognition';
 
@@ -8,20 +6,13 @@ const SET_CODES = ['JDG', 'OGN', 'OGNX', 'OGS', 'OPP', 'PR', 'PROK', 'SFD', 'SFD
 const SET_CODE_PATTERN = SET_CODES.join('|');
 const CARD_NAME_SUFFIXES = /\s+(\(?(Alternate Art|Overnumbered|Signature|Metal)\)?)$/i;
 const RARITY_LABELS = ['Common', 'Uncommon', 'Rare', 'Epic', 'Showcase', 'Promo'] as const;
+const TYPE_LABEL_PATTERN = /^(champion|unit|spell|rune|gear|battlefield|legend)\b/i;
 
 export type RarityHint = {
   rarity: (typeof RARITY_LABELS)[number];
   confidence: number;
   sourceText: string;
 };
-
-const knownCardNames = [
-  ...new Set(
-    [...cardmarketOverrides, ...cardmarketCandidates]
-      .map((card) => card.name.replace(CARD_NAME_SUFFIXES, '').trim())
-      .filter(Boolean),
-  ),
-].sort((a, b) => b.length - a.length);
 
 function normalizeOcrText(text: string) {
   return text
@@ -33,37 +24,57 @@ function normalizeOcrText(text: string) {
     .replace(/[\u2010-\u2015]/g, '-');
 }
 
-function normalizeNameText(value: string) {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\brek sai\b/g, 'reksai')
-    .trim();
-}
-
-function getFirstUsefulLine(text: string) {
+function getTextLines(text: string) {
   return text
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => {
-      if (!line || /^[0-9+\-\s/]+$/.test(line)) {
-        return false;
-      }
-
-      return !/^(champion|unit|spell|rune|gear|battlefield|legend)\b/i.test(line);
-    })
-    .find((line) => !SET_CODES.some((setCode) => line.toUpperCase().includes(setCode)));
+    .filter(Boolean);
 }
 
-function findKnownCardName(text: string) {
-  const normalizedText = ` ${normalizeNameText(text)} `;
+function containsSetCode(text: string) {
+  return SET_CODES.some((setCode) => new RegExp(`\\b${setCode}\\b`, 'i').test(text));
+}
 
-  return knownCardNames.find((name) => {
-    const normalizedName = normalizeNameText(name);
-    return normalizedName ? normalizedText.includes(` ${normalizedName} `) : false;
-  });
+function cleanNameLine(line: string) {
+  return line
+    .replace(CARD_NAME_SUFFIXES, '')
+    .replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isLikelyNameLine(line: string) {
+  const cleanedLine = cleanNameLine(line);
+
+  if (!cleanedLine || cleanedLine.length < 2) {
+    return false;
+  }
+
+  if (/^[0-9+\-\s/*]+$/.test(cleanedLine)) {
+    return false;
+  }
+
+  if (TYPE_LABEL_PATTERN.test(cleanedLine)) {
+    return false;
+  }
+
+  if (containsSetCode(cleanedLine)) {
+    return false;
+  }
+
+  if (/\b[0-9OIl]{1,3}[A-Za-z*]?\s*\/\s*[0-9]{2,3}\b/i.test(cleanedLine)) {
+    return false;
+  }
+
+  if (/^(common|uncommon|rare|epic|showcase|promo)$/i.test(cleanedLine)) {
+    return false;
+  }
+
+  return /[A-Za-z]/.test(cleanedLine);
+}
+
+function getFirstUsefulLine(text: string) {
+  return getTextLines(text).find(isLikelyNameLine);
 }
 
 function normalizeParsedNumber(value?: string) {
@@ -195,11 +206,22 @@ export function parseCardText(text: string): CardScanInput {
   const normalizedText = normalizeOcrText(text);
   const collectorInput = findCollectorInput(normalizedText);
   const firstLine = getFirstUsefulLine(normalizedText);
+  const name = firstLine ? cleanNameLine(firstLine) : undefined;
+  const input: CardScanInput = {};
 
-  return {
-    name: findKnownCardName(normalizedText) ?? firstLine,
-    ...collectorInput,
-  };
+  if (name) {
+    input.name = name;
+  }
+
+  if (collectorInput.setCode) {
+    input.setCode = collectorInput.setCode;
+  }
+
+  if (collectorInput.number) {
+    input.number = collectorInput.number;
+  }
+
+  return input;
 }
 
 export async function recognizeTextFromPhoto(photoUri: string) {

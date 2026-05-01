@@ -1,10 +1,9 @@
 import { CardScanInput, RiftboundCard } from '../cards/cards.types';
 import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 import { cardmarketCandidates } from './cardmarket-candidates.data';
-import { cardmarketOverrides } from './cardmarket-overrides.data';
 import { CardmarketOverride } from './cardmarket.types';
 
-export const cardmarketProducts = [...cardmarketOverrides, ...cardmarketCandidates];
+export const cardmarketProducts = cardmarketCandidates;
 
 function getProductKey(product: Pick<CardmarketOverride, 'setCode' | 'number'>) {
   return `${product.setCode.toUpperCase()}-${normalizeNumber(product.number)}`;

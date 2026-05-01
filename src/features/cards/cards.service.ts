@@ -9,6 +9,10 @@ import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 const CARDMARKET_BASE_URL = 'https://www.cardmarket.com';
 const cardmarketUrlReachabilityCache = new Map<string, boolean>();
 
+type CardmarketUrlOptions = {
+  printing?: 'normal' | 'foil';
+};
+
 const SET_LABELS: Record<string, string> = {
   JDG: 'Origins: Promos',
   OGN: 'Origins',
@@ -22,6 +26,20 @@ const SET_LABELS: Record<string, string> = {
   UNL: 'Unleashed',
 };
 
+export const REAL_CARDEX_SET_CODES = ['OGN', 'OGS', 'SFD', 'UNL'] as const;
+export type CardexVariantFilter = 'ALL' | 'BASE' | 'ALTERNATE' | 'OVERNUMBERED' | 'SIGNATURE';
+
+type CardexFilterOptions = {
+  query?: string;
+  setFilter?: string;
+  typeFilter?: string;
+  variantFilter?: CardexVariantFilter | string;
+};
+
+const CARDEX_SET_ORDER: Map<string, number> = new Map(
+  REAL_CARDEX_SET_CODES.map((setCode, index) => [setCode, index]),
+);
+
 function normalize(value: string) {
   return value
     .toLowerCase()
@@ -32,12 +50,23 @@ function normalize(value: string) {
     .trim();
 }
 
-function buildCardmarketUrlFromPath(pathOrUrl: string) {
-  if (/^https?:\/\//i.test(pathOrUrl)) {
-    return pathOrUrl;
+function appendCardmarketFoilParam(url: string, options?: CardmarketUrlOptions) {
+  if (options?.printing !== 'foil') {
+    return url;
   }
 
-  return `${CARDMARKET_BASE_URL}${pathOrUrl}`;
+  if (/[?&]isFoil=/i.test(url)) {
+    return url.replace(/([?&])isFoil=[^&]*/i, '$1isFoil=Y');
+  }
+
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}isFoil=Y`;
+}
+
+function buildCardmarketUrlFromPath(pathOrUrl: string, options?: CardmarketUrlOptions) {
+  const url = /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : `${CARDMARKET_BASE_URL}${pathOrUrl}`;
+
+  return appendCardmarketFoilParam(url, options);
 }
 
 function getCardmarketSearchName(name: string) {
@@ -121,6 +150,94 @@ const localCards = [...localCardMap.values()].sort((a, b) => {
 
 export function getAllCards() {
   return localCards;
+}
+
+function getCollectorSortParts(value: string) {
+  const normalizedNumber = normalizeCollectorNumber(value);
+  const [, numberPart = '0', suffix = ''] =
+    normalizedNumber.match(/^(\d+)([A-Z*]*)$/) ?? [];
+
+  return {
+    number: Number(numberPart),
+    suffix,
+    normalizedNumber,
+  };
+}
+
+function compareCollectorNumbers(left: string, right: string) {
+  const leftParts = getCollectorSortParts(left);
+  const rightParts = getCollectorSortParts(right);
+
+  return (
+    leftParts.number - rightParts.number ||
+    leftParts.suffix.localeCompare(rightParts.suffix) ||
+    leftParts.normalizedNumber.localeCompare(rightParts.normalizedNumber)
+  );
+}
+
+export function isRealCardexCard(card: Pick<RiftboundCard, 'setCode'>) {
+  return CARDEX_SET_ORDER.has(card.setCode);
+}
+
+export function isBattlefieldCard(card: Pick<RiftboundCard, 'type'>) {
+  return card.type.toLowerCase() === 'battlefield';
+}
+
+export function getCardexVariant(card: Pick<RiftboundCard, 'alternateArt' | 'overnumbered' | 'signature'>) {
+  if (card.signature) {
+    return 'SIGNATURE';
+  }
+
+  if (card.overnumbered) {
+    return 'OVERNUMBERED';
+  }
+
+  if (card.alternateArt) {
+    return 'ALTERNATE';
+  }
+
+  return 'BASE';
+}
+
+export function matchesCardexFilters(card: RiftboundCard, filters: CardexFilterOptions) {
+  const setFilter = filters.setFilter ?? 'ALL';
+  const typeFilter = filters.typeFilter ?? 'ALL';
+  const variantFilter = filters.variantFilter ?? 'ALL';
+  const query = filters.query?.trim() ?? '';
+
+  if (setFilter !== 'ALL' && card.setCode !== setFilter) {
+    return false;
+  }
+
+  if (typeFilter !== 'ALL' && card.type !== typeFilter) {
+    return false;
+  }
+
+  if (variantFilter !== 'ALL' && getCardexVariant(card) !== variantFilter) {
+    return false;
+  }
+
+  if (!query) {
+    return true;
+  }
+
+  return normalize(`${card.name} ${card.set} ${card.setCode} ${card.number} ${card.rarity ?? ''} ${card.type}`)
+    .includes(normalize(query));
+}
+
+export function compareCardexCards(left: RiftboundCard, right: RiftboundCard) {
+  return (
+    (CARDEX_SET_ORDER.get(left.setCode) ?? Number.MAX_SAFE_INTEGER) -
+      (CARDEX_SET_ORDER.get(right.setCode) ?? Number.MAX_SAFE_INTEGER) ||
+    compareCollectorNumbers(left.number, right.number) ||
+    left.name.localeCompare(right.name)
+  );
+}
+
+const cardexCards = localCards.filter(isRealCardexCard).sort(compareCardexCards);
+
+export function getCardexCards() {
+  return cardexCards;
 }
 
 export function getCardById(id: string) {
@@ -267,11 +384,11 @@ export function buildCardmarketSearchUrl(input: CardScanInput) {
   )}`;
 }
 
-export function buildCardmarketUrlForCard(card: RiftboundCard) {
+export function buildCardmarketUrlForCard(card: RiftboundCard, options?: CardmarketUrlOptions) {
   const override = findCardmarketOverride(card);
 
   if (override) {
-    return buildCardmarketUrlFromPath(override.cardmarketPath);
+    return buildCardmarketUrlFromPath(override.cardmarketPath, options);
   }
 
   return undefined;
@@ -297,8 +414,11 @@ async function canReachCardmarketUrl(url: string) {
   }
 }
 
-export async function getOpenableCardmarketUrlForCard(card: RiftboundCard) {
-  const directUrl = buildCardmarketUrlForCard(card);
+export async function getOpenableCardmarketUrlForCard(
+  card: RiftboundCard,
+  options?: CardmarketUrlOptions,
+) {
+  const directUrl = buildCardmarketUrlForCard(card, options);
   const searchUrl = buildCardmarketSearchUrl({ name: card.name });
 
   if (!directUrl) {
