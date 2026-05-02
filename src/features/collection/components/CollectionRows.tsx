@@ -1,9 +1,8 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button } from '../../../components/Button';
 import { CardSymbolIcon } from '../../../components/CardSymbolIcon';
-import { PriceTag } from '../../../components/PriceTag';
 import { QuantityStepper } from '../../../components/QuantityStepper';
+import { formatCardmarketPrice } from '../../cardmarket/cardmarket-prices.service';
 import { theme } from '../../../theme';
 import { CollectionEntry, CollectionPrinting, CollectionRow } from '../collection.types';
 
@@ -18,6 +17,11 @@ type InventoryRowProps = {
   ) => void;
 };
 
+function getCardColors(entry: CollectionEntry) {
+  const colors = entry.card.colors?.length ? entry.card.colors : [entry.card.color];
+  return [...new Set(colors.filter(Boolean))].slice(0, 2);
+}
+
 export function InventoryRow({
   row,
   onOpenCard,
@@ -25,9 +29,11 @@ export function InventoryRow({
   onChangeQuantity,
 }: InventoryRowProps) {
   const { entry } = row;
+  const isOwned = row.totalQuantity > 0;
+  const colors = getCardColors(entry);
 
   return (
-    <View style={styles.inventoryRow}>
+    <View style={[styles.inventoryRow, !isOwned && styles.inventoryRowMuted]}>
       <Pressable onPress={onOpenCard} style={styles.thumbnailButton}>
         {entry.card.imageUrl ? (
           <Image
@@ -41,23 +47,28 @@ export function InventoryRow({
       </Pressable>
 
       <View style={styles.content}>
-        <Pressable onPress={onOpenCard} style={styles.topLine}>
-          <View style={styles.nameWrap}>
+        <View style={styles.topLine}>
+          <Pressable onPress={onOpenCard} style={styles.nameWrap}>
+            <View style={styles.symbolRow}>
+              <CardSymbolIcon kind="rarity" size={17} value={entry.card.rarity} />
+              {colors.map((color) => (
+                <CardSymbolIcon kind="color" key={color} size={17} value={color} />
+              ))}
+            </View>
             <Text numberOfLines={1} style={styles.name}>
               {entry.card.name}
             </Text>
-            <View style={styles.symbolRow}>
-              <CardSymbolIcon kind="rarity" size={17} value={entry.card.rarity} />
-              <CardSymbolIcon kind="color" size={17} value={entry.card.color} />
-            </View>
-          </View>
-          <PriceTag value={row.trend} />
-        </Pressable>
+          </Pressable>
+          <Pressable onPress={onOpenPrice} style={styles.priceButton}>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.priceButtonText}>
+              {formatCardmarketPrice(row.trend)}
+            </Text>
+          </Pressable>
+        </View>
 
         <View style={styles.bottomLine}>
           <View style={styles.stepperRow}>
             <QuantityStepper
-              compact
               minimal
               label="N"
               value={entry.normalQuantity}
@@ -66,7 +77,6 @@ export function InventoryRow({
             />
             <View style={styles.stepperDivider} />
             <QuantityStepper
-              compact
               minimal
               label="F"
               value={entry.foilQuantity}
@@ -74,13 +84,6 @@ export function InventoryRow({
               onDecrement={() => onChangeQuantity(entry, 'foil', -1)}
             />
           </View>
-          <Button
-            label="CM"
-            tone="dark"
-            style={styles.cardmarketButton}
-            labelStyle={styles.cardmarketButtonLabel}
-            onPress={onOpenPrice}
-          />
         </View>
       </View>
     </View>
@@ -98,6 +101,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
     padding: 5,
     backgroundColor: theme.colors.panel,
+  },
+  inventoryRowMuted: {
+    opacity: 0.52,
   },
   thumbnailButton: {
     width: 54,
@@ -123,24 +129,45 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   topLine: {
-    minHeight: 34,
-    alignItems: 'flex-start',
+    minHeight: 32,
+    alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
   },
   nameWrap: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
   },
   name: {
+    flex: 1,
+    minWidth: 0,
     color: theme.colors.text,
     fontSize: 13,
     fontWeight: '900',
   },
   symbolRow: {
     flexDirection: 'row',
-    gap: 5,
+    gap: 3,
+  },
+  priceButton: {
+    minWidth: 66,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.controlBorder,
+    borderRadius: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 6,
+    backgroundColor: theme.colors.panelDeep,
+  },
+  priceButtonText: {
+    color: theme.colors.gold,
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
   },
   bottomLine: {
     alignItems: 'center',
@@ -151,23 +178,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 5,
+    gap: 7,
   },
   stepperDivider: {
     width: 1,
     height: 18,
     backgroundColor: theme.colors.panelBorder,
-  },
-  cardmarketButton: {
-    minWidth: 38,
-    borderWidth: 1,
-    borderColor: theme.colors.controlBorder,
-    borderRadius: 7,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    shadowOpacity: 0,
-  },
-  cardmarketButtonLabel: {
-    fontSize: 10,
   },
 });

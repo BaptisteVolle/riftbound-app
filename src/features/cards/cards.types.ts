@@ -5,6 +5,7 @@ export type RiftboundCard = {
   setCode: string;
   number: string;
   color: string;
+  colors?: string[];
   cost: number;
   type: string;
   imageUrl?: string;

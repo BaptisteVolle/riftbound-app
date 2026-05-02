@@ -12,6 +12,7 @@ export type CollectionCardSnapshot = Pick<
   | 'setCode'
   | 'number'
   | 'color'
+  | 'colors'
   | 'cost'
   | 'type'
   | 'imageUrl'

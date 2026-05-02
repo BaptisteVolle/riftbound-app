@@ -84,6 +84,7 @@ export function toCollectionCardSnapshot(card: RiftboundCard): CollectionCardSna
     setCode: card.setCode,
     number: normalizeCollectorNumber(card.number),
     color: card.color,
+    colors: card.colors,
     cost: card.cost,
     type: card.type,
     imageUrl: card.imageUrl,

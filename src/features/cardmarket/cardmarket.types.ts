@@ -4,6 +4,7 @@ export type CardmarketProductMapping = {
   number: string;
   name: string;
   color?: string;
+  colors?: string[];
   type?: string;
   rarity?: string;
   imageUrl?: string;

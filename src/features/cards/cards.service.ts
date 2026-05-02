@@ -120,6 +120,7 @@ function productToCard(product: CardmarketProductMapping): RiftboundCard {
     setCode: product.setCode,
     number: normalizeCollectorNumber(product.number),
     color: product.color ?? product.rarity ?? 'Unknown',
+    colors: product.colors?.length ? product.colors : product.color ? [product.color] : undefined,
     cost: 0,
     type: product.type ?? 'Card',
     imageUrl: product.imageUrl,

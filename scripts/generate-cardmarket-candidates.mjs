@@ -41,6 +41,10 @@ function stringLiteral(value) {
   return JSON.stringify(value ?? '');
 }
 
+function stringArrayLiteral(values) {
+  return JSON.stringify((values ?? []).filter(Boolean));
+}
+
 function normalizeText(value) {
   return String(value ?? '')
     .toLowerCase()
@@ -190,6 +194,7 @@ function toCandidate(card, allCards) {
     number: getPrintedNumber(card),
     name: card.metadata?.clean_name ?? card.name,
     color: card.classification?.domain?.[0] ?? '',
+    colors: card.classification?.domain ?? [],
     type: card.classification?.type ?? 'Card',
     rarity: card.classification?.rarity ?? '',
     imageUrl: card.media?.image_url ?? '',
@@ -209,6 +214,7 @@ function renderCandidates(candidates) {
     number: ${stringLiteral(candidate.number)},
     name: ${stringLiteral(candidate.name)},
     color: ${stringLiteral(candidate.color)},
+    colors: ${stringArrayLiteral(candidate.colors)},
     type: ${stringLiteral(candidate.type)},
     rarity: ${stringLiteral(candidate.rarity)},
     imageUrl: ${stringLiteral(candidate.imageUrl)},
