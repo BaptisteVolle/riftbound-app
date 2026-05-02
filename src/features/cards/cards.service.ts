@@ -1,9 +1,9 @@
 import { CardScanInput, RiftboundCard } from './cards.types';
 import {
-  findCardmarketOverride,
+  findCardmarketProductMapping,
   getCardmarketProducts,
 } from '../cardmarket/cardmarket.service';
-import { CardmarketOverride } from '../cardmarket/cardmarket.types';
+import { CardmarketProductMapping } from '../cardmarket/cardmarket.types';
 import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 
 const CARDMARKET_BASE_URL = 'https://www.cardmarket.com';
@@ -97,7 +97,7 @@ function getNameTokenOverlapScore(left: string, right: string) {
   return rightTokens.filter((token) => leftTokens.has(token)).length;
 }
 
-function getLocalCardId(product: CardmarketOverride) {
+function getLocalCardId(product: CardmarketProductMapping) {
   const number = normalizeCollectorNumber(product.number || '000');
   const nameKey = normalize(product.name).replace(/\s+/g, '-');
   return `${product.setCode.toLowerCase()}-${number.toLowerCase()}-${nameKey}`;
@@ -111,7 +111,7 @@ function normalizeProductName(name: string) {
     .replace(/\s+Metal$/i, ' (Metal)');
 }
 
-function productToCard(product: CardmarketOverride): RiftboundCard {
+function productToCard(product: CardmarketProductMapping): RiftboundCard {
   return {
     id: getLocalCardId(product),
     externalId: product.riftboundId,
@@ -119,7 +119,7 @@ function productToCard(product: CardmarketOverride): RiftboundCard {
     set: SET_LABELS[product.setCode] ?? product.setCode,
     setCode: product.setCode,
     number: normalizeCollectorNumber(product.number),
-    color: product.rarity ?? 'Unknown',
+    color: product.color ?? product.rarity ?? 'Unknown',
     cost: 0,
     type: product.type ?? 'Card',
     imageUrl: product.imageUrl,
@@ -385,10 +385,10 @@ export function buildCardmarketSearchUrl(input: CardScanInput) {
 }
 
 export function buildCardmarketUrlForCard(card: RiftboundCard, options?: CardmarketUrlOptions) {
-  const override = findCardmarketOverride(card);
+  const mapping = findCardmarketProductMapping(card);
 
-  if (override) {
-    return buildCardmarketUrlFromPath(override.cardmarketPath, options);
+  if (mapping) {
+    return buildCardmarketUrlFromPath(mapping.cardmarketPath, options);
   }
 
   return undefined;

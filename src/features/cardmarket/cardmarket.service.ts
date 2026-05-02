@@ -1,11 +1,11 @@
 import { CardScanInput, RiftboundCard } from '../cards/cards.types';
 import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 import { cardmarketCandidates } from './cardmarket-candidates.data';
-import { CardmarketOverride } from './cardmarket.types';
+import { CardmarketProductMapping } from './cardmarket.types';
 
 export const cardmarketProducts = cardmarketCandidates;
 
-function getProductKey(product: Pick<CardmarketOverride, 'setCode' | 'number'>) {
+function getProductKey(product: Pick<CardmarketProductMapping, 'setCode' | 'number'>) {
   return `${product.setCode.toUpperCase()}-${normalizeNumber(product.number)}`;
 }
 
@@ -32,20 +32,20 @@ function normalizeNumber(value?: string) {
   return value ? normalizeCollectorNumber(value) : '';
 }
 
-function hasPath(override: CardmarketOverride) {
-  return override.cardmarketPath.trim().length > 0;
+function hasPath(mapping: CardmarketProductMapping) {
+  return mapping.cardmarketPath.trim().length > 0;
 }
 
-export function findCardmarketOverride(input: CardScanInput & Pick<RiftboundCard, 'name'>) {
+export function findCardmarketProductMapping(input: CardScanInput & Pick<RiftboundCard, 'name'>) {
   const targetSetCode = normalizeSetCode(input.setCode);
   const targetNumber = normalizeNumber(input.number);
   const targetName = normalizeText(input.name);
 
-  const exactCollectorMatch = cardmarketProducts.find((override) => {
+  const exactCollectorMatch = cardmarketProducts.find((mapping) => {
     return (
-      hasPath(override) &&
-      normalizeSetCode(override.setCode) === targetSetCode &&
-      normalizeNumber(override.number) === targetNumber
+      hasPath(mapping) &&
+      normalizeSetCode(mapping.setCode) === targetSetCode &&
+      normalizeNumber(mapping.number) === targetNumber
     );
   });
 
@@ -53,11 +53,11 @@ export function findCardmarketOverride(input: CardScanInput & Pick<RiftboundCard
     return exactCollectorMatch;
   }
 
-  const exactNameInSetMatches = cardmarketProducts.filter((override) => {
+  const exactNameInSetMatches = cardmarketProducts.filter((mapping) => {
     return (
-      hasPath(override) &&
-      normalizeSetCode(override.setCode) === targetSetCode &&
-      normalizeText(override.name) === targetName
+      hasPath(mapping) &&
+      normalizeSetCode(mapping.setCode) === targetSetCode &&
+      normalizeText(mapping.name) === targetName
     );
   });
 
@@ -65,8 +65,8 @@ export function findCardmarketOverride(input: CardScanInput & Pick<RiftboundCard
     return exactNameInSetMatches[0];
   }
 
-  const exactNameMatches = cardmarketProducts.filter((override) => {
-    return hasPath(override) && normalizeText(override.name) === targetName;
+  const exactNameMatches = cardmarketProducts.filter((mapping) => {
+    return hasPath(mapping) && normalizeText(mapping.name) === targetName;
   });
 
   if (exactNameMatches.length === 1) {

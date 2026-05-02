@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '../src/components/Button';
+import { CardIdentityRow } from '../src/components/CardIdentityRow';
+import { DropdownSelect } from '../src/components/DropdownSelect';
 import {
   formatCardmarketPrice,
   getCardmarketPriceForCard,
@@ -19,11 +21,9 @@ import {
 import { RiftboundCard } from '../src/features/cards/cards.types';
 import { getCollection, getCollectionCardKey } from '../src/features/collection/collection.service';
 import { CollectionEntry } from '../src/features/collection/collection.types';
-import { formatCardMeta } from '../src/lib/utils';
 
 const CARDEX_PAGE_SIZE = 24;
 const VARIANT_FILTER_OPTIONS: CardexVariantFilter[] = ['ALL', 'BASE', 'ALTERNATE', 'OVERNUMBERED', 'SIGNATURE'];
-type DropdownKey = 'set' | 'type' | 'variant';
 type CardexRouteParams = {
   query?: string;
   ownedOnly?: string;
@@ -51,6 +51,13 @@ function getOwnershipMap(collection: CollectionEntry[]) {
   );
 }
 
+function toDropdownOptions<TValue extends string>(values: readonly TValue[]) {
+  return values.map((value) => ({
+    label: value === 'ALL' ? 'All' : value,
+    value,
+  }));
+}
+
 export default function CardexScreen() {
   const params = useLocalSearchParams<CardexRouteParams>();
   const [collection, setCollection] = useState<CollectionEntry[]>([]);
@@ -65,7 +72,6 @@ export default function CardexScreen() {
   const [setFilter, setSetFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [variantFilter, setVariantFilter] = useState<CardexVariantFilter>('ALL');
-  const [openDropdown, setOpenDropdown] = useState<DropdownKey | undefined>();
 
   useEffect(() => {
     setQuery(typeof params.query === 'string' ? params.query : '');
@@ -116,6 +122,9 @@ export default function CardexScreen() {
   const typeOptions = useMemo(() => {
     return ['ALL', ...new Set(cards.map((card) => card.type).sort((a, b) => a.localeCompare(b)))];
   }, [cards]);
+  const setDropdownOptions = useMemo(() => toDropdownOptions(setCodes), [setCodes]);
+  const typeDropdownOptions = useMemo(() => toDropdownOptions(typeOptions), [typeOptions]);
+  const variantDropdownOptions = useMemo(() => toDropdownOptions(VARIANT_FILTER_OPTIONS), []);
   const filteredCards = useMemo(() => {
     return cards.filter((card) => {
       const ownership = ownershipByKey.get(getCollectionCardKey(card));
@@ -236,7 +245,6 @@ export default function CardexScreen() {
       nextTypeFilter: 'ALL',
       nextVariantFilter: 'ALL',
     });
-    setOpenDropdown(undefined);
   }
 
   return (
@@ -272,37 +280,22 @@ export default function CardexScreen() {
             <Button label="RESET" tone="dark" style={styles.filterButton} onPress={resetFilters} />
           </View>
           <View style={styles.dropdownGrid}>
-            <FilterDropdown
-              isOpen={openDropdown === 'set'}
+            <DropdownSelect
               label="Set"
-              onSelect={(value) => {
-                updateCardexRoute({ nextSetFilter: value });
-                setOpenDropdown(undefined);
-              }}
-              onToggle={() => setOpenDropdown((current) => (current === 'set' ? undefined : 'set'))}
-              options={setCodes}
+              onChange={(value) => updateCardexRoute({ nextSetFilter: value })}
+              options={setDropdownOptions}
               value={setFilter}
             />
-            <FilterDropdown
-              isOpen={openDropdown === 'type'}
+            <DropdownSelect
               label="Type"
-              onSelect={(value) => {
-                updateCardexRoute({ nextTypeFilter: value });
-                setOpenDropdown(undefined);
-              }}
-              onToggle={() => setOpenDropdown((current) => (current === 'type' ? undefined : 'type'))}
-              options={typeOptions}
+              onChange={(value) => updateCardexRoute({ nextTypeFilter: value })}
+              options={typeDropdownOptions}
               value={typeFilter}
             />
-            <FilterDropdown
-              isOpen={openDropdown === 'variant'}
+            <DropdownSelect
               label="Variant"
-              onSelect={(value) => {
-                updateCardexRoute({ nextVariantFilter: value });
-                setOpenDropdown(undefined);
-              }}
-              onToggle={() => setOpenDropdown((current) => (current === 'variant' ? undefined : 'variant'))}
-              options={VARIANT_FILTER_OPTIONS}
+              onChange={(value) => updateCardexRoute({ nextVariantFilter: value })}
+              options={variantDropdownOptions}
               value={variantFilter}
             />
           </View>
@@ -392,68 +385,21 @@ export default function CardexScreen() {
             )}
 
             <View style={styles.cardInfoBlock}>
-              <View style={styles.cardNameRow}>
-                <Text numberOfLines={1} style={styles.cardName}>
-                  {card.name}
-                </Text>
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.ownedState,
-                    ownership.total === 0 && styles.missingState,
-                  ]}
-                >
-                  {ownership.total > 0 ? 'OWNED' : 'NOT OWNED'}
-                </Text>
-              </View>
-              <Text style={styles.meta}>{formatCardMeta(card.setCode, card.number)}</Text>
+              <CardIdentityRow card={card} compact showImage={false} textTone="dark" />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.ownedState,
+                  ownership.total === 0 && styles.missingState,
+                ]}
+              >
+                {ownership.total > 0 ? 'OWNED' : 'NOT OWNED'}
+              </Text>
             </View>
           </Pressable>
         );
       }}
     />
-  );
-}
-
-function FilterDropdown({
-  isOpen,
-  label,
-  onSelect,
-  onToggle,
-  options,
-  value,
-}: {
-  isOpen: boolean;
-  label: string;
-  onSelect: (value: string) => void;
-  onToggle: () => void;
-  options: readonly string[];
-  value: string;
-}) {
-  return (
-    <View style={styles.dropdown}>
-      <Pressable accessibilityRole="button" onPress={onToggle} style={styles.dropdownTrigger}>
-        <Text numberOfLines={1} style={styles.dropdownLabel}>{label}</Text>
-        <Text numberOfLines={1} style={styles.dropdownValue}>{value}</Text>
-        <Text style={styles.dropdownIcon}>{isOpen ? '-' : '+'}</Text>
-      </Pressable>
-      {isOpen ? (
-        <View style={styles.dropdownMenu}>
-          {options.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => onSelect(option)}
-              style={[
-                styles.dropdownOption,
-                option === value && styles.dropdownOptionSelected,
-              ]}
-            >
-              <Text style={styles.dropdownOptionText}>{option}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-    </View>
   );
 }
 
@@ -536,63 +482,6 @@ const styles = StyleSheet.create({
   },
   dropdownGrid: {
     gap: 8,
-  },
-  dropdown: {
-    gap: 0,
-  },
-  dropdownTrigger: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    borderWidth: 3,
-    borderColor: '#111',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    backgroundColor: '#fff',
-  },
-  dropdownLabel: {
-    color: '#111',
-    fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  dropdownValue: {
-    flex: 1,
-    color: '#111',
-    fontSize: 15,
-    fontWeight: '900',
-    textAlign: 'right',
-  },
-  dropdownIcon: {
-    minWidth: 18,
-    color: '#111',
-    fontSize: 18,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  dropdownMenu: {
-    borderRightWidth: 3,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderColor: '#111',
-    borderBottomRightRadius: 10,
-    borderBottomLeftRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-  },
-  dropdownOption: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-  },
-  dropdownOptionSelected: {
-    backgroundColor: '#FFD84D',
-  },
-  dropdownOptionText: {
-    color: '#111',
-    fontSize: 13,
-    fontWeight: '900',
   },
   loadingPanel: {
     alignItems: 'center',
@@ -685,22 +574,6 @@ const styles = StyleSheet.create({
   cardInfoBlock: {
     minHeight: 46,
     gap: 3,
-  },
-  cardNameRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  cardName: {
-    flex: 1,
-    color: '#111',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  meta: {
-    color: '#111',
-    fontSize: 10,
-    fontWeight: '900',
   },
   ownedState: {
     borderWidth: 2,

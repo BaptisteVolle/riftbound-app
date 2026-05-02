@@ -1,4 +1,5 @@
 import { RiftboundCard } from '../cards/cards.types';
+import { CardmarketPriceSummary } from '../cardmarket/cardmarket.types';
 
 export type CollectionPrinting = 'normal' | 'foil';
 
@@ -38,4 +39,14 @@ export type CollectionTotals = {
   totalCards: number;
   normalCards: number;
   foilCards: number;
+};
+
+export type CollectionRow = {
+  entry: CollectionEntry;
+  price?: CardmarketPriceSummary;
+  low?: number | null;
+  avg?: number | null;
+  trend?: number | null;
+  estimatedValue: number;
+  totalQuantity: number;
 };

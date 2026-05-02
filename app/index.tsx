@@ -47,9 +47,6 @@ const styles = StyleSheet.create({
   yellow: {
     backgroundColor: '#FFD84D',
   },
-  pink: {
-    backgroundColor: '#FF6B9E',
-  },
   blue: {
     backgroundColor: '#1F6F9F',
   },

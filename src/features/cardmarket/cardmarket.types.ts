@@ -1,8 +1,9 @@
-export type CardmarketOverride = {
+export type CardmarketProductMapping = {
   riftboundId?: string;
   setCode: string;
   number: string;
   name: string;
+  color?: string;
   type?: string;
   rarity?: string;
   imageUrl?: string;

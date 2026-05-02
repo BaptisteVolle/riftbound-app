@@ -4,12 +4,12 @@ import { RiftboundCard } from '../cards/cards.types';
 import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 import {
   cardmarketProducts,
-  findCardmarketOverride,
+  findCardmarketProductMapping,
 } from './cardmarket.service';
 import {
-  CardmarketOverride,
   CardmarketPriceGuide,
   CardmarketPriceGuideItem,
+  CardmarketProductMapping,
   CardmarketPriceSummary,
   CardmarketProductCatalog,
   CardmarketProductCatalogItem,
@@ -104,7 +104,7 @@ function normalizeText(value?: string) {
     .trim();
 }
 
-function getCardKey(card: Pick<CardmarketOverride, 'setCode' | 'number' | 'name'>) {
+function getCardKey(card: Pick<CardmarketProductMapping, 'setCode' | 'number' | 'name'>) {
   return [
     card.setCode.toUpperCase(),
     normalizeCollectorNumber(card.number),
@@ -127,7 +127,7 @@ function getProductGroupKey(product: CardmarketProductCatalogItem) {
   return `${product.idExpansion}:${normalizeText(product.name)}`;
 }
 
-function getLocalGroupKey(product: CardmarketOverride) {
+function getLocalGroupKey(product: CardmarketProductMapping) {
   const expansionId = getExpansionIdFromPath(product.cardmarketPath);
 
   if (!expansionId) {
@@ -137,7 +137,7 @@ function getLocalGroupKey(product: CardmarketOverride) {
   return `${expansionId}:${normalizeText(product.name)}`;
 }
 
-function getVariantSortValue(product: CardmarketOverride) {
+function getVariantSortValue(product: CardmarketProductMapping) {
   const normalizedNumber = normalizeCollectorNumber(product.number);
   const [, numberPart = '0', suffix = ''] =
     normalizedNumber.match(/^(\d+)([A-Z*]*)$/) ?? [];
@@ -173,7 +173,7 @@ function buildProductIdByCardKey(catalog: CardmarketProductCatalog) {
     catalogGroups.set(groupKey, group);
   });
 
-  const localGroups = new Map<string, CardmarketOverride[]>();
+  const localGroups = new Map<string, CardmarketProductMapping[]>();
 
   cardmarketProducts.forEach((product) => {
     if (!product.cardmarketPath.trim()) {
@@ -420,13 +420,13 @@ export function formatRefreshWaitTime(ms: number) {
 
 export async function getCardmarketPriceForCard(card: RiftboundCard) {
   const data = await refreshCardmarketPriceData();
-  const override = findCardmarketOverride(card);
+  const mapping = findCardmarketProductMapping(card);
 
-  if (!override) {
+  if (!mapping) {
     return undefined;
   }
 
-  const idProduct = data.productIdByCardKey.get(getCardKey(override));
+  const idProduct = data.productIdByCardKey.get(getCardKey(mapping));
 
   if (!idProduct) {
     return undefined;

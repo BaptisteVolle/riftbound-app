@@ -112,11 +112,6 @@ export const styles = StyleSheet.create({
     fontWeight: "900",
     textAlign: "center",
   },
-  candidateSummary: {
-    alignItems: "stretch",
-    flexDirection: "row",
-    gap: 10,
-  },
   cardImageWrap: {
     alignItems: "center",
     paddingHorizontal: 8,
@@ -144,24 +139,6 @@ export const styles = StyleSheet.create({
   imagePlaceholderText: {
     color: "#F8F0DC",
     fontSize: 12,
-    fontWeight: "900",
-  },
-  candidateInfo: {
-    flex: 1,
-    justifyContent: "flex-start",
-    gap: 6,
-  },
-  candidateInfoTop: {
-    gap: 4,
-  },
-  candidateName: {
-    color: "#F8F0DC",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  candidateMeta: {
-    color: "#F2B84B",
-    fontSize: 13,
     fontWeight: "900",
   },
   confidenceBadge: {
@@ -219,9 +196,6 @@ export const styles = StyleSheet.create({
     minHeight: 52,
     textAlignVertical: "center",
     textAlign: "center",
-  },
-  cardActions: {
-    gap: 6,
   },
   resultActionRow: {
     alignItems: "flex-end",
@@ -342,14 +316,6 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     textAlign: "center",
-  },
-  collectionPanel: {
-    gap: 10,
-    borderWidth: 2,
-    borderColor: "#F8F0DC",
-    borderRadius: 14,
-    padding: 10,
-    backgroundColor: "#092A4C",
   },
   collectionOptions: {
     alignItems: "flex-end",

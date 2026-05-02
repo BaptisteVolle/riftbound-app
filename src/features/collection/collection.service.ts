@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { getAllCards } from '../cards/cards.service';
 import { RiftboundCard } from '../cards/cards.types';
 import { normalizeCollectorNumber } from '../riftcodex/riftcodex.service';
 import {
@@ -11,6 +12,7 @@ import {
 
 const STORAGE_DIRECTORY = new Directory(Paths.document, 'riftbound-app');
 const COLLECTION_FILE = new File(STORAGE_DIRECTORY, 'collection.json');
+let catalogByCollectionKey: Map<string, RiftboundCard> | undefined;
 
 function getNow() {
   return new Date().toISOString();
@@ -33,6 +35,32 @@ function sortCollection(collection: CollectionEntry[]) {
       a.card.name.localeCompare(b.card.name)
     );
   });
+}
+
+function getCatalogByCollectionKey() {
+  if (!catalogByCollectionKey) {
+    catalogByCollectionKey = new Map(
+      getAllCards().map((card) => [getCollectionCardKey(card), card]),
+    );
+  }
+
+  return catalogByCollectionKey;
+}
+
+function hydrateCollectionEntry(entry: CollectionEntry): CollectionEntry {
+  const catalogCard = getCatalogByCollectionKey().get(entry.cardKey);
+
+  if (!catalogCard) {
+    return entry;
+  }
+
+  return {
+    ...entry,
+    card: {
+      ...entry.card,
+      ...toCollectionCardSnapshot(catalogCard),
+    },
+  };
 }
 
 function sanitizeQuantity(value: number) {
@@ -87,7 +115,7 @@ function writeCollectionFile(collection: CollectionEntry[]) {
 }
 
 export async function getCollection() {
-  return sortCollection(await readCollectionFile());
+  return sortCollection((await readCollectionFile()).map(hydrateCollectionEntry));
 }
 
 export async function addCardToCollection(

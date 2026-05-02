@@ -1,12 +1,14 @@
-import { Pressable, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
+
+import { theme } from '../theme';
 
 type ButtonProps = {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
   tone?: 'gold' | 'orange' | 'blue' | 'dark' | 'yellow' | 'pink';
-  style?: ViewStyle;
-  labelStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
 };
 
 export function Button({
@@ -39,44 +41,41 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#F8F0DC',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    shadowColor: '#071527',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 0,
+    borderColor: theme.colors.cream,
+    borderRadius: theme.radii.lg,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    ...theme.shadows.soft,
   },
   label: {
-    color: '#071527',
-    fontSize: 16,
+    color: theme.colors.appBackground,
+    fontSize: theme.fontSizes.button,
     fontWeight: '900',
     textAlign: 'center',
   },
   lightLabel: {
-    color: '#fff',
+    color: theme.colors.white,
   },
   gold: {
-    backgroundColor: '#F2B84B',
+    backgroundColor: theme.colors.goldSoft,
   },
   orange: {
-    backgroundColor: '#E66A2C',
+    backgroundColor: theme.colors.orange,
   },
   yellow: {
-    backgroundColor: '#F2B84B',
+    backgroundColor: theme.colors.goldSoft,
   },
   pink: {
-    backgroundColor: '#E66A2C',
+    backgroundColor: theme.colors.orange,
   },
   blue: {
-    backgroundColor: '#1F6F9F',
+    backgroundColor: theme.colors.blue,
   },
   dark: {
-    backgroundColor: '#071527',
+    backgroundColor: theme.colors.appBackground,
   },
   disabled: {
-    backgroundColor: '#6F7D8C',
+    backgroundColor: theme.colors.disabled,
     opacity: 0.75,
   },
   pressed: {
