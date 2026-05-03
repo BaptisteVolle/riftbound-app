@@ -150,6 +150,15 @@ export const styles = StyleSheet.create({
   searchBadge: {
     backgroundColor: "#E66A2C",
   },
+  confidenceBadgeExact: {
+    backgroundColor: "#2E8B57",
+  },
+  confidenceBadgeLikely: {
+    backgroundColor: "#F2B84B",
+  },
+  confidenceBadgeUncertain: {
+    backgroundColor: "#E66A2C",
+  },
   confidenceText: {
     color: "#F8F0DC",
     fontSize: 12,
@@ -422,6 +431,33 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   actionButton: {
+    flex: 1,
+  },
+  failedPanel: {
+    gap: 10,
+    borderWidth: 2,
+    borderColor: "#E66A2C",
+    borderRadius: 14,
+    padding: 10,
+    backgroundColor: "#092A4C",
+  },
+  failedTitle: {
+    color: "#F2B84B",
+    fontSize: 15,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  failedMessage: {
+    color: "#F8F0DC",
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  failedActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  failedActionButton: {
     flex: 1,
   },
   centered: {
