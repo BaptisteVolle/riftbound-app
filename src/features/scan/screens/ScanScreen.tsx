@@ -1,36 +1,56 @@
-import { useRef } from 'react';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useRef, useState } from "react";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
   View,
-} from 'react-native';
+  type LayoutRectangle,
+} from "react-native";
 
-import { Button } from '../../../components/Button';
-import { ScannerOverlay } from '../../../components/ScannerOverlay';
-import { ScanCandidateStrip } from '../components/ScanCandidateStrip';
-import { ScanCaptureView } from '../components/ScanCaptureView';
-import { ScanFailedView } from '../components/ScanFailedView';
-import { ScanLoadingView } from '../components/ScanLoadingView';
-import { ScanManualEditPanel } from '../components/ScanManualEditPanel';
-import { ScanResultView } from '../components/ScanResultView';
-import { useScanController } from '../hooks/useScanController';
-import { styles } from './scan-screen.styles';
+import { Button } from "../../../components/Button";
+import { ScannerOverlay } from "../../../components/ScannerOverlay";
+import { ScanCandidateStrip } from "../components/ScanCandidateStrip";
+import { ScanCaptureView } from "../components/ScanCaptureView";
+import { ScanFailedView } from "../components/ScanFailedView";
+import { ScanLoadingView } from "../components/ScanLoadingView";
+import { ScanManualEditPanel } from "../components/ScanManualEditPanel";
+import { ScanResultView } from "../components/ScanResultView";
+import { useScanController } from "../hooks/useScanController";
+import { styles } from "./scan-screen.styles";
+import { ScanDebugImages } from "../components/ScanDebugImage";
+import React from "react";
 
 export function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const scan = useScanController({ cameraRef, permission });
+  const [cameraLayout, setCameraLayout] = useState<LayoutRectangle>();
+  const [scannerFrameLayout, setScannerFrameLayout] =
+    useState<LayoutRectangle>();
+  const scan = useScanController({
+    cameraRef,
+    permission,
+    cameraLayout,
+    scannerFrameLayout,
+  });
   const failedResult =
-    scan.state.scanResult?.status === 'failed'
+    scan.state.scanResult?.status === "failed"
       ? scan.state.scanResult
       : undefined;
   const successResult =
-    scan.state.scanResult?.status === 'success'
+    scan.state.scanResult?.status === "success"
       ? scan.state.scanResult
       : undefined;
+
+  const loadingControls = (
+    <View style={styles.loadingScreen}>
+      <ScanLoadingView
+        step={scan.state.analysisStep}
+        message={scan.state.statusMessage}
+      />
+    </View>
+  );
 
   const reviewControls = (
     <View style={styles.reviewLayout}>
@@ -40,44 +60,52 @@ export function ScanScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {scan.state.isCheckingScan ? (
-          <ScanLoadingView
-            step={scan.state.analysisStep}
-            message={scan.state.statusMessage}
-          />
-        ) : null}
-
-        {failedResult && !scan.state.isCheckingScan ? (
+        {failedResult && scan.state.viewMode === "failed" ? (
           <ScanFailedView
+            actions={{
+              onEditManually: scan.actions.openEditPanel,
+              onRetakePhoto: scan.actions.handleRetakePhoto,
+              onRetryOcr: scan.actions.handleRetryOcr,
+            }}
             canRetryOcr={Boolean(scan.state.capturedPhotoUri)}
             result={failedResult}
-            onEditManually={scan.actions.openEditPanel}
-            onRetakePhoto={scan.actions.handleRetakePhoto}
-            onRetryOcr={scan.actions.handleRetryOcr}
           />
         ) : null}
 
-        <ScanResultView
-          activePrinting={scan.state.activePrinting}
-          canSearchCardmarket={scan.state.canSearchCardmarket}
-          canUseExactCard={scan.state.canUseExactCard}
-          cardmarketPrice={scan.state.cardmarketPrice}
-          candidateImageUri={scan.state.candidateImageUri}
-          collectionMessage={scan.state.collectionMessage}
-          collectionQuantity={scan.state.collectionQuantity}
-          confidence={successResult?.confidence}
-          detectedCard={scan.state.detectedCard}
-          displayedTitle={scan.state.displayedTitle}
-          isFoilLocked={scan.state.isFoilLocked}
-          isPriceLoading={scan.state.isPriceLoading}
-          isSavingCollection={scan.state.isSavingCollection}
-          lastUrlMode={scan.state.lastUrlMode}
-          priceMessage={scan.state.priceMessage}
-          onAddToCollection={scan.actions.handleAddToCollection}
-          onChangePrinting={scan.actions.setCollectionPrinting}
-          onSeePrice={scan.actions.handleSeePrice}
-          onUpdateCollectionQuantity={scan.actions.updateCollectionQuantity}
-        />
+        {successResult && scan.state.viewMode === "success" ? (
+          <ScanResultView
+            actions={{
+              onAddToCollection: scan.actions.handleAddToCollection,
+              onChangePrinting: scan.actions.setCollectionPrinting,
+              onConfirmResult: scan.actions.handleConfirmResult,
+              onSeePrice: scan.actions.handleSeePrice,
+              onUpdateCollectionQuantity: scan.actions.updateCollectionQuantity,
+            }}
+            collection={{
+              activePrinting: scan.state.activePrinting,
+              canAddToCollection: scan.state.canAddToCollection,
+              collectionMessage: scan.state.collectionMessage,
+              collectionQuantity: scan.state.collectionQuantity,
+              isSavingCollection: scan.state.isSavingCollection,
+              requiresResultConfirmation: scan.state.requiresResultConfirmation,
+              resultGuidanceMessage: scan.state.resultGuidanceMessage,
+            }}
+            display={{
+              canSearchCardmarket: scan.state.canSearchCardmarket,
+              canUseExactCard: scan.state.canUseExactCard,
+              imageUri: scan.state.candidateImageUri,
+              isFoilLocked: scan.state.isFoilLocked,
+              lastUrlMode: scan.state.lastUrlMode,
+              title: scan.state.displayedTitle,
+            }}
+            price={{
+              cardmarketPrice: scan.state.cardmarketPrice,
+              isPriceLoading: scan.state.isPriceLoading,
+              priceMessage: scan.state.priceMessage,
+            }}
+            result={successResult}
+          />
+        ) : null}
 
         <ScanCandidateStrip
           candidates={scan.state.alternativeCandidates}
@@ -115,6 +143,7 @@ export function ScanScreen() {
             scan.actions.setIsEditPanelOpen((currentValue) => !currentValue);
           }}
         />
+        <ScanDebugImages images={scan.state.scanDebugImages} />
       </ScrollView>
 
       <View style={styles.reviewFooter}>
@@ -150,28 +179,33 @@ export function ScanScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      {!scan.state.isReviewingPhoto ? (
+      {scan.state.viewMode === "capture" ? (
         <CameraView
           ref={cameraRef}
           active
           facing="back"
           onCameraReady={scan.actions.handleCameraReady}
+          onLayout={(event) => {
+            setCameraLayout(event.nativeEvent.layout);
+          }}
           onMountError={scan.actions.handleCameraError}
           style={styles.camera}
         />
       ) : null}
-      {!scan.state.isReviewingPhoto ? <ScannerOverlay /> : null}
+      {scan.state.viewMode === "capture" ? (
+        <ScannerOverlay onFrameLayout={setScannerFrameLayout} />
+      ) : null}
       <View
         style={
-          scan.state.isReviewingPhoto ? styles.reviewPanel : styles.capturePanel
+          scan.state.viewMode === "capture"
+            ? styles.capturePanel
+            : styles.reviewPanel
         }
       >
-        {scan.state.isReviewingPhoto ? (
-          reviewControls
-        ) : (
+        {scan.state.viewMode === "capture" ? (
           <ScanCaptureView
             isBusy={scan.state.isBusy}
             isCameraReady={scan.state.isCameraReady}
@@ -179,9 +213,12 @@ export function ScanScreen() {
             status={scan.state.scanStatus}
             onCapturePhoto={scan.actions.handleCapturePhoto}
           />
+        ) : scan.state.viewMode === "loading" ? (
+          loadingControls
+        ) : (
+          reviewControls
         )}
       </View>
     </KeyboardAvoidingView>
   );
 }
-

@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   container: {
@@ -82,6 +82,30 @@ export const styles = StyleSheet.create({
     fontSize: 20,
     letterSpacing: 0,
   },
+  loadingScreen: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 18,
+    backgroundColor: "#081E34",
+  },
+  scanLoadingPanel: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    width: "100%",
+    minHeight: 112,
+    borderWidth: 2,
+    borderColor: "#F2B84B",
+    borderRadius: 14,
+    padding: 18,
+    backgroundColor: "#092A4C",
+  },
+  scanLoadingText: {
+    color: "#F8F0DC",
+    fontSize: 15,
+    fontWeight: "900",
+    textAlign: "center",
+  },
   checkingPanel: {
     alignItems: "center",
     flexDirection: "row",
@@ -106,10 +130,35 @@ export const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#123F6D",
   },
+  resultHeaderRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+  },
+  resultTitleBlock: {
+    flex: 1,
+    gap: 3,
+  },
   resultTitle: {
     color: "#F8F0DC",
     fontSize: 16,
     fontWeight: "900",
+    textAlign: "center",
+  },
+  resultTitleInHeader: {
+    textAlign: "left",
+  },
+  resultSubtitle: {
+    color: "#F2B84B",
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 15,
+    textAlign: "left",
+  },
+  resultGuidanceText: {
+    color: "#F8F0DC",
+    fontSize: 12,
+    fontWeight: "800",
     textAlign: "center",
   },
   cardImageWrap: {
@@ -143,6 +192,7 @@ export const styles = StyleSheet.create({
   },
   confidenceBadge: {
     alignSelf: "flex-start",
+    flexShrink: 0,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -211,8 +261,14 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  cardPriceButton: {
+  cardPriceButtonColumn: {
     flex: 1,
+    alignSelf: "stretch",
+    justifyContent: "flex-end",
+  },
+
+  cardPriceButton: {
+    width: "100%",
     minHeight: 45,
     justifyContent: "center",
     paddingVertical: 5,
@@ -336,7 +392,7 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   printingControl: {
-    flex: 1,
+    width: "100%",
     gap: 6,
   },
   optionLabel: {
@@ -350,12 +406,13 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 6,
+    minHeight: 45,
   },
   stepperButton: {
     borderRadius: 8,
     flex: 1,
     minWidth: 42,
-    minHeight: 39,
+    minHeight: 45,
     justifyContent: "center",
     paddingVertical: 6,
     paddingHorizontal: 8,
@@ -368,7 +425,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   collectionAddButton: {
-    flex: 1,
+    width: "100%",
     minHeight: 45,
     justifyContent: "center",
     paddingVertical: 5,
@@ -378,17 +435,45 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 16,
   },
+  controlRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+
+  controlColumn: {
+    flex: 1,
+    gap: 6,
+  },
+
+  controlLabel: {
+    minHeight: 13,
+    color: "#F8F0DC",
+    fontSize: 10,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+
+  controlHeight: {
+    minHeight: 45,
+  },
+
+  fullWidthControl: {
+    width: "100%",
+  },
+
   segmentedControl: {
     flexDirection: "row",
     borderWidth: 2,
     borderColor: "#F8F0DC",
     borderRadius: 8,
-    minHeight: 39,
+    minHeight: 45,
     overflow: "hidden",
   },
   segmentButton: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 6,
     backgroundColor: "#123F6D",
   },
@@ -402,6 +487,8 @@ export const styles = StyleSheet.create({
     color: "#F8F0DC",
     fontSize: 11,
     fontWeight: "900",
+    lineHeight: 13,
+    textAlign: "center",
   },
   segmentTextActive: {
     color: "#071527",

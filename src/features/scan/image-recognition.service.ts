@@ -1,8 +1,8 @@
-import { Directory, File, Paths } from 'expo-file-system';
-import { Buffer } from 'buffer';
-import { decode } from 'jpeg-js';
-
-import { RiftboundCard } from '../cards/cards.types';
+import { Directory, File, Paths } from "expo-file-system";
+import { Buffer } from "buffer";
+import { decode } from "jpeg-js";
+import { RiftboundCard } from "../cards/cards.types";
+import { cropScanImage, type ScanDebugCropKind } from "./scan-debug.service";
 
 type ImageSignature = {
   pixels: Uint8Array;
@@ -14,19 +14,26 @@ export type ImageMatchResult = {
   margin: number;
 };
 
-const THUMBNAIL_SIZE = 16;
-const IMAGE_CACHE_DIRECTORY = new Directory(Paths.cache, 'riftbound-card-images');
+type ImageSignatureOptions = {
+  cropKind?: ScanDebugCropKind;
+};
+
+const THUMBNAIL_SIZE = 32;
+const IMAGE_CACHE_DIRECTORY = new Directory(
+  Paths.cache,
+  "riftbound-card-images",
+);
 const signatureCache = new Map<string, ImageSignature>();
 
 function getImageExtension(value: string) {
-  const pathname = value.split('?')[0] ?? '';
+  const pathname = value.split("?")[0] ?? "";
   const extension = pathname.match(/\.(png|jpe?g|webp)$/i)?.[1]?.toLowerCase();
 
   if (!extension) {
-    return 'jpg';
+    return "jpg";
   }
 
-  return extension === 'jpeg' ? 'jpg' : extension;
+  return extension === "jpeg" ? "jpg" : extension;
 }
 
 function getSafeFileName(value: string) {
@@ -62,24 +69,43 @@ async function getLocalImageUri(uri: string) {
 }
 
 function decodeJpegBase64(base64: string) {
-  return decode(Buffer.from(base64, 'base64'), {
+  return decode(Buffer.from(base64, "base64"), {
     formatAsRGBA: true,
     tolerantDecoding: true,
     useTArray: true,
   });
 }
 
-async function getImageSignature(uri: string) {
-  const cachedSignature = signatureCache.get(uri);
+async function getImageSignature(
+  uri: string,
+  options: ImageSignatureOptions = {},
+) {
+  const cacheKey = `${uri}:${options.cropKind ?? "none"}`;
+  const cachedSignature = signatureCache.get(cacheKey);
 
   if (cachedSignature) {
     return cachedSignature;
   }
 
   const localUri = await getLocalImageUri(uri);
-  const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+  const { manipulateAsync, SaveFormat } =
+    await import("expo-image-manipulator");
+
+  const signatureSource = options.cropKind
+    ? (await cropScanImage(localUri, options.cropKind)).uri
+    : localUri;
+
+  if (__DEV__) {
+    console.log("[IMAGE] signature source:", {
+      originalUri: uri,
+      localUri,
+      signatureSource,
+      cropKind: options.cropKind ?? "none",
+    });
+  }
+
   const normalizedImage = await manipulateAsync(
-    localUri,
+    signatureSource,
     [{ resize: { width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE } }],
     {
       base64: true,
@@ -89,7 +115,7 @@ async function getImageSignature(uri: string) {
   );
 
   if (!normalizedImage.base64) {
-    throw new Error('Image signature could not be created.');
+    throw new Error("Image signature could not be created.");
   }
 
   const decodedImage = decodeJpegBase64(normalizedImage.base64);
@@ -105,7 +131,7 @@ async function getImageSignature(uri: string) {
   }
 
   const signature = { pixels };
-  signatureCache.set(uri, signature);
+  signatureCache.set(cacheKey, signature);
 
   return signature;
 }
@@ -123,20 +149,26 @@ function compareSignatures(left: ImageSignature, right: ImageSignature) {
 export async function findBestImageMatch(
   photoUri: string,
   candidates: RiftboundCard[],
+  options: ImageSignatureOptions = { cropKind: "artwork" },
 ): Promise<ImageMatchResult | undefined> {
-  const imageCandidates = candidates.filter((candidate) => candidate.imageUrl);
+  const imageCandidates = candidates.filter(
+    (candidate): candidate is RiftboundCard & { imageUrl: string } =>
+      Boolean(candidate.imageUrl),
+  );
 
   if (!photoUri || imageCandidates.length < 2) {
     return undefined;
   }
 
   try {
-    const photoSignature = await getImageSignature(photoUri);
+    const photoSignature = await getImageSignature(photoUri, options);
     const scoredCandidates: ImageMatchResult[] = [];
 
     for (const candidate of imageCandidates.slice(0, 8)) {
       try {
-        const candidateSignature = await getImageSignature(candidate.imageUrl ?? '');
+        const candidateSignature = await getImageSignature(candidate.imageUrl, {
+          cropKind: "artwork",
+        });
         scoredCandidates.push({
           card: candidate,
           similarity: compareSignatures(photoSignature, candidateSignature),
@@ -147,9 +179,48 @@ export async function findBestImageMatch(
       }
     }
 
-    const [bestMatch, secondBestMatch] = scoredCandidates.sort(
+    const sortedMatches = scoredCandidates.sort(
       (left, right) => right.similarity - left.similarity,
     );
+
+    if (__DEV__) {
+      console.log(
+        "[IMAGE] scored candidates:",
+        sortedMatches.map((match) => ({
+          name: match.card.name,
+          setCode: match.card.setCode,
+          number: match.card.number,
+          imageUrl: match.card.imageUrl,
+          similarity: Number(match.similarity.toFixed(4)),
+        })),
+      );
+
+      const [best, second] = sortedMatches;
+
+      console.log("[IMAGE] best match summary:", {
+        best: best
+          ? {
+              name: best.card.name,
+              setCode: best.card.setCode,
+              number: best.card.number,
+              similarity: Number(best.similarity.toFixed(4)),
+            }
+          : undefined,
+        second: second
+          ? {
+              name: second.card.name,
+              setCode: second.card.setCode,
+              number: second.card.number,
+              similarity: Number(second.similarity.toFixed(4)),
+            }
+          : undefined,
+        margin: best
+          ? Number((best.similarity - (second?.similarity ?? 0)).toFixed(4))
+          : undefined,
+      });
+    }
+
+    const [bestMatch, secondBestMatch] = sortedMatches;
 
     if (!bestMatch) {
       return undefined;

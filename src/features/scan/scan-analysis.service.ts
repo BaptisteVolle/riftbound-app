@@ -1,5 +1,5 @@
-import type { CardScanInput } from '../cards/cards.types';
-import { findRiftCodexCardFromScan } from '../riftcodex/riftcodex.service';
+import type { CardScanInput } from "../cards/cards.types";
+import { findRiftCodexCardFromScan } from "../riftcodex/riftcodex.service";
 import {
   chooseValidatedCard,
   getCollectorMatch,
@@ -8,14 +8,14 @@ import {
   hasAnyScanInput,
   isExactScanMatch,
   isSureTextMatch,
-} from './scan-match.service';
-import { scanCardTextFromPhoto } from './ocr.service';
-import type { RarityHint } from './ocr.service';
+} from "./scan-match.service";
+import { scanCardTextFromPhoto } from "./ocr.service";
+import type { RarityHint } from "./ocr.service";
 import type {
   ScanAnalysisResult,
   ScanAnalysisStep,
   ScanAnalysisSuccess,
-} from './scan.types';
+} from "./scan.types";
 
 type ScanStepListener = (step: ScanAnalysisStep, message: string) => void;
 
@@ -29,16 +29,16 @@ type AnalyzeInput = {
 };
 
 function getScanErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : '';
+  const message = error instanceof Error ? error.message : "";
 
   if (
-    message.includes('Native module') ||
-    message.includes('Cannot find native module')
+    message.includes("Native module") ||
+    message.includes("Cannot find native module")
   ) {
-    return 'OCR needs a native dev build. Manual text search still works.';
+    return "OCR needs a native dev build. Manual text search still works.";
   }
 
-  return 'OCR or RiftCodex lookup failed. Edit the fields or try another photo.';
+  return "OCR or RiftCodex lookup failed. Edit the fields or try another photo.";
 }
 
 function getScanConfidence({
@@ -47,23 +47,23 @@ function getScanConfidence({
 }: {
   isExactCardCandidate: boolean;
   reason: string;
-}): ScanAnalysisSuccess['confidence'] {
+}): ScanAnalysisSuccess["confidence"] {
   if (isExactCardCandidate) {
-    return 'exact';
+    return "exact";
   }
 
-  if (reason.startsWith('Rarity hint')) {
-    return 'uncertain';
+  if (reason.startsWith("Rarity hint")) {
+    return "uncertain";
   }
 
-  return 'likely';
+  return "likely";
 }
 
 async function analyzeCardScan(
   { input, photoUri }: AnalyzeInput,
   options: AnalyzeOptions = {},
 ): Promise<ScanAnalysisResult> {
-  options.onStep?.('reading-text', 'Checking text...');
+  options.onStep?.("reading-text", "Checking text...");
 
   let scanInput = input;
   let rarityHint: RarityHint | undefined;
@@ -76,17 +76,17 @@ async function analyzeCardScan(
 
   if (!hasAnyScanInput(scanInput)) {
     return {
-      status: 'failed',
-      confidence: 'failed',
+      status: "failed",
+      confidence: "failed",
       candidates: [],
       input: scanInput,
       reason: photoUri
-        ? 'OCR did not find enough card text. Edit the fields or retake the photo.'
-        : 'Enter at least a name, set, or number before checking.',
+        ? "OCR did not find enough card text. Edit the fields or retake the photo."
+        : "Enter at least a name, set, or number before checking.",
     };
   }
 
-  options.onStep?.('matching-card', 'Finding card candidates...');
+  options.onStep?.("matching-card", "Finding card candidates...");
 
   const statusParts: string[] = [];
   const collectorMatch = getCollectorMatch(scanInput, photoUri);
@@ -113,24 +113,24 @@ async function analyzeCardScan(
     const canSearchByName = Boolean(scanInput.name?.trim());
 
     return {
-      status: 'failed',
-      confidence: 'failed',
+      status: "failed",
+      confidence: "failed",
       candidates: getStableScanCandidates(scanInput),
       input: scanInput,
       reason: canSearchByName
-        ? 'No exact local match. You can search Cardmarket by name.'
-        : 'No match yet. Edit the fields or retake the photo.',
+        ? "No exact local match. You can search Cardmarket by name."
+        : "No match yet. Edit the fields or retake the photo.",
     };
   }
 
   const candidates = getStableScanCandidates(scanInput, baseCard);
   options.onStep?.(
     photoUri && !isSureTextMatch(baseCard, scanInput)
-      ? 'validating-image'
-      : 'checking-variants',
+      ? "validating-image"
+      : "checking-variants",
     photoUri && !isSureTextMatch(baseCard, scanInput)
-      ? 'Checking image...'
-      : 'Checking variants...',
+      ? "Checking image..."
+      : "Checking variants...",
   );
 
   const validatedCard = await chooseValidatedCard({
@@ -143,12 +143,12 @@ async function analyzeCardScan(
   const selectedCard = validatedCard.card;
   const isExactCardCandidate =
     validatedCard.isValidated ||
-    selectedCard.matchConfidence === 'exact' ||
+    selectedCard.matchConfidence === "exact" ||
     isExactScanMatch(selectedCard, scanInput);
-  const reason = [...statusParts, validatedCard.reason].join(' ');
+  const reason = [...statusParts, validatedCard.reason].join(" ");
 
   return {
-    status: 'success',
+    status: "success",
     confidence: getScanConfidence({
       isExactCardCandidate,
       reason: validatedCard.reason,
@@ -175,8 +175,8 @@ export async function analyzeCardScanFromPhoto(
     );
   } catch (error) {
     return {
-      status: 'failed',
-      confidence: 'failed',
+      status: "failed",
+      confidence: "failed",
       candidates: [],
       reason: getScanErrorMessage(error),
     };
@@ -204,8 +204,8 @@ export async function analyzeCardScanFromManualInput(
     );
   } catch (error) {
     return {
-      status: 'failed',
-      confidence: 'failed',
+      status: "failed",
+      confidence: "failed",
       candidates: [],
       input: getManualScanInput(name, setCode, number),
       reason: getScanErrorMessage(error),

@@ -1,7 +1,8 @@
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
-import type { RiftboundCard } from '../../cards/cards.types';
-import { styles } from '../screens/scan-screen.styles';
+import type { RiftboundCard } from "../../cards/cards.types";
+import { styles } from "../screens/scan-screen.styles";
+import React from "react";
 
 export function ScanCandidateStrip({
   candidates,
@@ -20,7 +21,7 @@ export function ScanCandidateStrip({
     <View style={styles.candidateStrip}>
       <View style={styles.candidateStripHeader}>
         <Text style={styles.candidateStripTitle}>
-          {hasDetectedCard ? 'Other variants' : 'Possible matches'}
+          {hasDetectedCard ? "Other variants" : "Possible matches"}
         </Text>
         <Text style={styles.candidateStripHint}>Tap to switch</Text>
       </View>
@@ -61,4 +62,3 @@ export function ScanCandidateStrip({
     </View>
   );
 }
-

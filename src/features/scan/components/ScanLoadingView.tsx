@@ -10,10 +10,11 @@ export function ScanLoadingView({
   message: string;
 }) {
   return (
-    <View style={styles.checkingPanel}>
-      <ActivityIndicator color="#F2B84B" size="small" />
-      <Text style={styles.checkingText}>{message || 'Checking card...'}</Text>
+    <View style={styles.scanLoadingPanel}>
+      <ActivityIndicator color="#F2B84B" size="large" />
+      <Text style={styles.scanLoadingText}>
+        {message || 'Checking card...'}
+      </Text>
     </View>
   );
 }
-

@@ -1,7 +1,8 @@
-import { Text, View } from 'react-native';
+import { Text, View } from "react-native";
 
-import { formatCardmarketPrice } from '../../cardmarket/cardmarket-prices.service';
-import { styles } from '../screens/scan-screen.styles';
+import { formatCardmarketPrice } from "../../cardmarket/cardmarket-prices.service";
+import { styles } from "../screens/scan-screen.styles";
+import React from "react";
 
 export function PriceMetric({
   label,
@@ -19,4 +20,3 @@ export function PriceMetric({
     </View>
   );
 }
-
