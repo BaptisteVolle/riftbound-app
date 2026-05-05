@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "generate:cardmarket-candidates": "node scripts/generate-cardmarket-candidates.mjs"
+    "generate:cardmarket-candidates": "node scripts/generate-cardmarket-candidates.mjs",
+    "generate:card-image-index": "python3 tools/generate-card-image-index.py"
   },
   "dependencies": {
     "@react-native-ml-kit/text-recognition": "^2.0.0",
