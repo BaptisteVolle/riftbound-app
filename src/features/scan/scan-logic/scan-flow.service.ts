@@ -1,8 +1,15 @@
 import type { CardScanInput, RiftboundCard } from "../../cards/cards.types";
 import type { ScanAnalysisResult, ScanAnalysisStep } from "../scan.types";
+import { SCAN_IMAGE_FIRST } from "../debug/scan-debug-flag";
 import { decideScanResult } from "./scan-decision.service";
-import { findBestImageMatch } from "./scan-image-match.service";
-import { getScanCandidates } from "./scan-candidates.service";
+import {
+  findBestImageMatch,
+  findImageMatches,
+} from "./scan-image-match.service";
+import {
+  getScanCandidates,
+  mergeCardCandidates,
+} from "./scan-candidates.service";
 import { readCardOcr } from "./scan-ocr.service";
 import {
   getManualScanInput,
@@ -88,6 +95,48 @@ export async function scanCardFromPhoto(
   photoUri: string,
   options: ScanFlowOptions = {},
 ): Promise<ScanAnalysisResult> {
+  if (SCAN_IMAGE_FIRST) {
+    options.onStep?.("validating-image", "Checking image...");
+
+    const imageMatches = await findImageMatches(
+      {
+        uri: photoUri,
+        cropKind: "artwork",
+        source: "overlay-crop",
+        layout: "portrait",
+      },
+      {
+        mode: "full-index",
+        topN: 10,
+      },
+    );
+
+    options.onStep?.("reading-text", "Checking text...");
+
+    const ocr = await readCardOcr(photoUri);
+    const textCandidates = hasAnyScanInput(ocr.input)
+      ? getScanCandidates(ocr.input)
+      : [];
+    const candidates = mergeCardCandidates([
+      ...imageMatches.map((match) => match.card),
+      ...textCandidates,
+    ]);
+
+    if (candidates.length === 0) {
+      return buildFailedResult({
+        input: ocr.input,
+        candidates,
+        reason: "No matching Riftbound card found.",
+      });
+    }
+
+    return decideScanResult({
+      input: ocr.input,
+      candidates,
+      imageMatch: imageMatches[0],
+    });
+  }
+
   options.onStep?.("reading-text", "Checking text...");
 
   const ocr = await readCardOcr(photoUri);

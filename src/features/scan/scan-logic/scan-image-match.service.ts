@@ -2,6 +2,11 @@ import { Directory, File, Paths } from "expo-file-system";
 import type { RiftboundCard } from "../../cards/cards.types";
 import { SCAN_IMAGE_DEBUG } from "../debug/scan-debug-flag";
 import {
+  getCardImageIndexStats,
+  getIndexedCardImageEntries,
+  type IndexedCardImageEntry,
+} from "./scan-image-index.service";
+import {
   CARD_IMAGE_HISTOGRAM_BINS,
   CARD_IMAGE_THUMBNAIL_SIZE,
   compareCardImageSignatures,
@@ -25,6 +30,8 @@ export type FindImageMatchesOptions = {
   candidates?: RiftboundCard[];
   topN?: number;
   cropKind?: ScanCardImageCropKind;
+  mode?: "candidate-indexed" | "full-index";
+  fallbackToRuntime?: boolean;
 };
 
 const IMAGE_CACHE_DIRECTORY = new Directory(
@@ -152,21 +159,184 @@ function rankMatches(matches: ImageMatchResult[]) {
   });
 }
 
-export async function findImageMatches(
-  region: ScanCardImageRegion,
-  options: FindImageMatchesOptions = {},
-): Promise<ImageMatchResult[]> {
+function getCandidateIds(candidates?: RiftboundCard[]) {
+  return new Set((candidates ?? []).map((candidate) => candidate.id));
+}
+
+function getIndexedEntriesForOptions(options: FindImageMatchesOptions) {
+  const mode = options.mode ?? "candidate-indexed";
+  const indexedEntries = getIndexedCardImageEntries();
+
+  if (mode === "full-index") {
+    return indexedEntries;
+  }
+
+  const candidateIds = getCandidateIds(options.candidates);
+
+  if (candidateIds.size === 0) {
+    return [];
+  }
+
+  return indexedEntries.filter(({ card }) => candidateIds.has(card.id));
+}
+
+function scoreIndexedEntries({
+  photoSignature,
+  indexedEntries,
+  region,
+  cropKind,
+}: {
+  photoSignature: CardImageSignatureV1;
+  indexedEntries: IndexedCardImageEntry[];
+  region: ScanCardImageRegion;
+  cropKind: ScanCardImageCropKind;
+}) {
+  return indexedEntries
+    .filter(({ entry }) => entry.layout === region.layout)
+    .filter(({ entry }) => entry.cropKind === cropKind)
+    .map(({ card, entry }): ImageMatchResult => {
+      const comparison = compareCardImageSignatures(
+        photoSignature,
+        entry.signature,
+      );
+
+      return {
+        card,
+        entry,
+        score: comparison.score,
+        margin: 0,
+        rgbSimilarity: comparison.rgbSimilarity,
+        dHashSimilarity: comparison.dHashSimilarity,
+        histogramSimilarity: comparison.histogramSimilarity,
+        rank: 0,
+      };
+    });
+}
+
+async function findRuntimeImageMatches(
+  options: FindImageMatchesOptions,
+  signatureRegion: Omit<ScanCardImageRegion, "uri">,
+  photoSignature: CardImageSignatureV1,
+) {
   const imageCandidates = (options.candidates ?? []).filter(
     (candidate): candidate is RiftboundCard & { imageUrl: string } =>
       Boolean(candidate.imageUrl),
   );
 
-  if (!region.uri || imageCandidates.length < 2) {
+  if (imageCandidates.length < 2) {
+    return [];
+  }
+
+  const scoredCandidates: ImageMatchResult[] = [];
+
+  for (const candidate of imageCandidates.slice(0, 8)) {
+    try {
+      const candidateSignature = await getImageSignature(
+        candidate.imageUrl,
+        signatureRegion,
+      );
+      const comparison = compareCardImageSignatures(
+        photoSignature,
+        candidateSignature,
+      );
+
+      scoredCandidates.push({
+        card: candidate,
+        entry: getLegacyIndexEntry(
+          candidate,
+          candidateSignature,
+          signatureRegion,
+        ),
+        score: comparison.score,
+        margin: 0,
+        rgbSimilarity: comparison.rgbSimilarity,
+        dHashSimilarity: comparison.dHashSimilarity,
+        histogramSimilarity: comparison.histogramSimilarity,
+        rank: 0,
+      });
+    } catch {
+      // Some remote candidate images may be unavailable. Keep the scan usable.
+    }
+  }
+
+  return scoredCandidates;
+}
+
+function logImageMatches({
+  rankedMatches,
+  region,
+  cropKind,
+  source,
+}: {
+  rankedMatches: ImageMatchResult[];
+  region: ScanCardImageRegion;
+  cropKind: ScanCardImageCropKind;
+  source: "local-index" | "runtime-fallback";
+}) {
+  if (!SCAN_IMAGE_DEBUG) {
+    return;
+  }
+
+  console.log(
+    "[IMAGE] scored candidates:",
+    rankedMatches.map((match) => ({
+      name: match.card.name,
+      setCode: match.card.setCode,
+      number: match.card.number,
+      imageUrl: match.entry.imageUrl,
+      rank: match.rank,
+      score: Number(match.score.toFixed(4)),
+      margin: Number(match.margin.toFixed(4)),
+      rgbSimilarity: Number(match.rgbSimilarity.toFixed(4)),
+      dHashSimilarity: Number(match.dHashSimilarity.toFixed(4)),
+      histogramSimilarity: Number(match.histogramSimilarity.toFixed(4)),
+      source,
+    })),
+  );
+
+  const [best] = rankedMatches;
+  const secondDifferentImageMatch = getSecondDifferentImageMatch(
+    rankedMatches,
+    best,
+  );
+
+  console.log("[IMAGE] best match summary:", {
+    best: best
+      ? {
+          name: best.card.name,
+          setCode: best.card.setCode,
+          number: best.card.number,
+          score: Number(best.score.toFixed(4)),
+        }
+      : undefined,
+    secondDifferentImage: secondDifferentImageMatch
+      ? {
+          name: secondDifferentImageMatch.card.name,
+          setCode: secondDifferentImageMatch.card.setCode,
+          number: secondDifferentImageMatch.card.number,
+          score: Number(secondDifferentImageMatch.score.toFixed(4)),
+        }
+      : undefined,
+    margin: best ? Number(best.margin.toFixed(4)) : undefined,
+    signatureVersion: 1,
+    layout: region.layout,
+    cropKind,
+    source,
+    indexStats: getCardImageIndexStats(),
+  });
+}
+
+export async function findImageMatches(
+  region: ScanCardImageRegion,
+  options: FindImageMatchesOptions = {},
+): Promise<ImageMatchResult[]> {
+  if (!region.uri) {
     return [];
   }
 
   try {
     const cropKind = options.cropKind ?? region.cropKind;
+    const topN = options.topN ?? 10;
     const signatureRegion = {
       cropKind,
       source: region.source,
@@ -174,91 +344,44 @@ export async function findImageMatches(
       rotationDegrees: region.rotationDegrees,
     };
     const photoSignature = await getImageSignature(region.uri, signatureRegion);
-    const scoredCandidates: ImageMatchResult[] = [];
+    const indexedMatches = scoreIndexedEntries({
+      photoSignature,
+      indexedEntries: getIndexedEntriesForOptions(options),
+      region,
+      cropKind,
+    });
+    const rankedIndexedMatches = rankMatches(indexedMatches).slice(0, topN);
 
-    for (const candidate of imageCandidates.slice(0, 8)) {
-      try {
-        const candidateSignature = await getImageSignature(
-          candidate.imageUrl,
-          signatureRegion,
-        );
-        const comparison = compareCardImageSignatures(
-          photoSignature,
-          candidateSignature,
-        );
-
-        scoredCandidates.push({
-          card: candidate,
-          entry: getLegacyIndexEntry(
-            candidate,
-            candidateSignature,
-            signatureRegion,
-          ),
-          score: comparison.score,
-          margin: 0,
-          rgbSimilarity: comparison.rgbSimilarity,
-          dHashSimilarity: comparison.dHashSimilarity,
-          histogramSimilarity: comparison.histogramSimilarity,
-          rank: 0,
-        });
-      } catch {
-        // Some remote candidate images may be unavailable. Keep the scan usable.
-      }
-    }
-
-    const rankedMatches = rankMatches(scoredCandidates).slice(
-      0,
-      options.topN ?? 10,
-    );
-
-    if (SCAN_IMAGE_DEBUG) {
-      console.log(
-        "[IMAGE] scored candidates:",
-        rankedMatches.map((match) => ({
-          name: match.card.name,
-          setCode: match.card.setCode,
-          number: match.card.number,
-          imageUrl: match.entry.imageUrl,
-          rank: match.rank,
-          score: Number(match.score.toFixed(4)),
-          margin: Number(match.margin.toFixed(4)),
-          rgbSimilarity: Number(match.rgbSimilarity.toFixed(4)),
-          dHashSimilarity: Number(match.dHashSimilarity.toFixed(4)),
-          histogramSimilarity: Number(match.histogramSimilarity.toFixed(4)),
-        })),
-      );
-
-      const [best] = rankedMatches;
-      const secondDifferentImageMatch = getSecondDifferentImageMatch(
-        rankedMatches,
-        best,
-      );
-
-      console.log("[IMAGE] best match summary:", {
-        best: best
-          ? {
-              name: best.card.name,
-              setCode: best.card.setCode,
-              number: best.card.number,
-              score: Number(best.score.toFixed(4)),
-            }
-          : undefined,
-        secondDifferentImage: secondDifferentImageMatch
-          ? {
-              name: secondDifferentImageMatch.card.name,
-              setCode: secondDifferentImageMatch.card.setCode,
-              number: secondDifferentImageMatch.card.number,
-              score: Number(secondDifferentImageMatch.score.toFixed(4)),
-            }
-          : undefined,
-        margin: best ? Number(best.margin.toFixed(4)) : undefined,
-        signatureVersion: 1,
-        layout: region.layout,
+    if (rankedIndexedMatches.length > 0) {
+      logImageMatches({
+        rankedMatches: rankedIndexedMatches,
+        region,
         cropKind,
+        source: "local-index",
       });
+
+      return rankedIndexedMatches;
     }
 
-    return rankedMatches;
+    if (options.fallbackToRuntime === false) {
+      return [];
+    }
+
+    const runtimeMatches = await findRuntimeImageMatches(
+      options,
+      signatureRegion,
+      photoSignature,
+    );
+    const rankedRuntimeMatches = rankMatches(runtimeMatches).slice(0, topN);
+
+    logImageMatches({
+      rankedMatches: rankedRuntimeMatches,
+      region,
+      cropKind,
+      source: "runtime-fallback",
+    });
+
+    return rankedRuntimeMatches;
   } catch {
     return [];
   }
