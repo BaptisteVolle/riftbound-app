@@ -1,4 +1,14 @@
 import type { CardScanInput, RiftboundCard } from "../cards/cards.types";
+export type {
+  CardImageIndexEntry,
+  CardImageSignatureV1,
+  ImageMatchResult,
+  ScanCardImageCropKind,
+  ScanCardImageRegion,
+  ScanCardImageSource,
+  ScanCardLayout,
+  ScanDecisionInput,
+} from "./scan-logic/scan-image-signature.types";
 
 export type ScanStatus =
   | "idle"

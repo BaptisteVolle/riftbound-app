@@ -10,7 +10,7 @@ const STRONG_IMAGE_MARGIN = 0.0035;
 function isStrongImageMatch(imageMatch?: ImageMatchResult) {
   return Boolean(
     imageMatch &&
-    imageMatch.similarity >= STRONG_IMAGE_SIMILARITY &&
+    imageMatch.score >= STRONG_IMAGE_SIMILARITY &&
     imageMatch.margin >= STRONG_IMAGE_MARGIN,
   );
 }
@@ -94,7 +94,7 @@ export function decideScanResult({
       candidates,
       input,
       confidence: "exact",
-      reason: `Image match ${imageMatch!.similarity.toFixed(3)} / margin ${imageMatch!.margin.toFixed(3)}`,
+      reason: `Image match ${imageMatch!.score.toFixed(3)} / margin ${imageMatch!.margin.toFixed(3)}`,
     });
   }
 

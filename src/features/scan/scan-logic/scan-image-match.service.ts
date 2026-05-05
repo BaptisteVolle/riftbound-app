@@ -2,24 +2,33 @@ import { Buffer } from "buffer";
 import { Directory, File, Paths } from "expo-file-system";
 import { decode } from "jpeg-js";
 import type { RiftboundCard } from "../../cards/cards.types";
-import { cropScanImage, type ScanCropKind } from "./scan-image-crop.service";
+import { cropScanImage } from "./scan-image-crop.service";
 import { SCAN_IMAGE_DEBUG } from "../debug/scan-debug-flag";
+import type {
+  CardImageIndexEntry,
+  ImageMatchResult,
+  ScanCardImageCropKind,
+  ScanCardImageRegion,
+} from "./scan-image-signature.types";
+
+export type { ImageMatchResult } from "./scan-image-signature.types";
 
 type ImageSignature = {
   pixels: Uint8Array;
 };
 
-export type ImageMatchResult = {
-  card: RiftboundCard;
-  similarity: number;
-  margin: number;
+type ImageSignatureOptions = {
+  cropKind?: ScanCardImageCropKind;
 };
 
-type ImageSignatureOptions = {
-  cropKind?: ScanCropKind;
+export type FindImageMatchesOptions = {
+  candidates?: RiftboundCard[];
+  topN?: number;
+  cropKind?: ScanCardImageCropKind;
 };
 
 const THUMBNAIL_SIZE = 32;
+const HISTOGRAM_BINS = 64;
 const IMAGE_CACHE_DIRECTORY = new Directory(
   Paths.cache,
   "riftbound-card-images",
@@ -153,61 +162,127 @@ function compareSignatures(left: ImageSignature, right: ImageSignature) {
   return 1 - totalDifference / (left.pixels.length * 255);
 }
 
-export async function findBestImageMatch(
-  photoUri: string,
-  candidates: RiftboundCard[],
-  options: ImageSignatureOptions = { cropKind: "artwork" },
-): Promise<ImageMatchResult | undefined> {
-  const imageCandidates = candidates.filter(
+function getLegacyIndexEntry(
+  card: RiftboundCard & { imageUrl: string },
+  signature: ImageSignature,
+  cropKind: ScanCardImageCropKind,
+): CardImageIndexEntry {
+  return {
+    cardId: card.id,
+    externalId: card.externalId,
+    name: card.name,
+    setCode: card.setCode,
+    number: card.number,
+    imageUrl: card.imageUrl,
+    signatureVersion: 1,
+    cropKind,
+    layout: "portrait",
+    thumbnailSize: THUMBNAIL_SIZE,
+    histogramBins: HISTOGRAM_BINS,
+    signature: {
+      rgbTiny: Array.from(signature.pixels),
+      dHash: "",
+      colorHistogram: [],
+    },
+  };
+}
+
+function getSecondDifferentImageMatch(
+  matches: ImageMatchResult[],
+  bestMatch?: ImageMatchResult,
+) {
+  const bestImageUrl = bestMatch?.entry.imageUrl ?? "";
+
+  return matches.find((match) => match.entry.imageUrl !== bestImageUrl);
+}
+
+function rankMatches(matches: ImageMatchResult[]) {
+  const sortedMatches = matches.sort((left, right) => right.score - left.score);
+
+  return sortedMatches.map((match, index) => {
+    const secondDifferentImageMatch =
+      index === 0
+        ? getSecondDifferentImageMatch(sortedMatches, match)
+        : undefined;
+
+    return {
+      ...match,
+      margin:
+        index === 0
+          ? match.score - (secondDifferentImageMatch?.score ?? 0)
+          : match.margin,
+      rank: index + 1,
+    };
+  });
+}
+
+export async function findImageMatches(
+  region: ScanCardImageRegion,
+  options: FindImageMatchesOptions = {},
+): Promise<ImageMatchResult[]> {
+  const imageCandidates = (options.candidates ?? []).filter(
     (candidate): candidate is RiftboundCard & { imageUrl: string } =>
       Boolean(candidate.imageUrl),
   );
 
-  if (!photoUri || imageCandidates.length < 2) {
-    return undefined;
+  if (!region.uri || imageCandidates.length < 2) {
+    return [];
   }
 
   try {
-    const photoSignature = await getImageSignature(photoUri, options);
+    const cropKind = options.cropKind ?? region.cropKind;
+    const photoSignature = await getImageSignature(region.uri, {
+      cropKind,
+    });
     const scoredCandidates: ImageMatchResult[] = [];
 
     for (const candidate of imageCandidates.slice(0, 8)) {
       try {
         const candidateSignature = await getImageSignature(candidate.imageUrl, {
-          cropKind: options.cropKind ?? "artwork",
+          cropKind,
         });
+        const score = compareSignatures(photoSignature, candidateSignature);
 
         scoredCandidates.push({
           card: candidate,
-          similarity: compareSignatures(photoSignature, candidateSignature),
+          entry: getLegacyIndexEntry(candidate, candidateSignature, cropKind),
+          score,
           margin: 0,
+          rgbSimilarity: score,
+          dHashSimilarity: 0,
+          histogramSimilarity: 0,
+          rank: 0,
         });
       } catch {
         // Some remote candidate images may be unavailable. Keep the scan usable.
       }
     }
 
-    const sortedMatches = scoredCandidates.sort(
-      (left, right) => right.similarity - left.similarity,
+    const rankedMatches = rankMatches(scoredCandidates).slice(
+      0,
+      options.topN ?? 10,
     );
 
     if (SCAN_IMAGE_DEBUG) {
       console.log(
         "[IMAGE] scored candidates:",
-        sortedMatches.map((match) => ({
+        rankedMatches.map((match) => ({
           name: match.card.name,
           setCode: match.card.setCode,
           number: match.card.number,
-          imageUrl: match.card.imageUrl,
-          similarity: Number(match.similarity.toFixed(4)),
+          imageUrl: match.entry.imageUrl,
+          rank: match.rank,
+          score: Number(match.score.toFixed(4)),
+          margin: Number(match.margin.toFixed(4)),
+          rgbSimilarity: Number(match.rgbSimilarity.toFixed(4)),
         })),
       );
 
-      const [best] = sortedMatches;
-      const bestImageUrl = best?.card.imageUrl ?? "";
-      const secondDifferentImageMatch = sortedMatches.find((match) => {
-        return (match.card.imageUrl ?? "") !== bestImageUrl;
-      });
+      const [best] = rankedMatches;
+      const secondDifferentImageMatch = getSecondDifferentImageMatch(
+        rankedMatches,
+        best,
+      );
 
       console.log("[IMAGE] best match summary:", {
         best: best
@@ -215,7 +290,7 @@ export async function findBestImageMatch(
               name: best.card.name,
               setCode: best.card.setCode,
               number: best.card.number,
-              similarity: Number(best.similarity.toFixed(4)),
+              score: Number(best.score.toFixed(4)),
             }
           : undefined,
         secondDifferentImage: secondDifferentImageMatch
@@ -223,39 +298,40 @@ export async function findBestImageMatch(
               name: secondDifferentImageMatch.card.name,
               setCode: secondDifferentImageMatch.card.setCode,
               number: secondDifferentImageMatch.card.number,
-              similarity: Number(
-                secondDifferentImageMatch.similarity.toFixed(4),
-              ),
+              score: Number(secondDifferentImageMatch.score.toFixed(4)),
             }
           : undefined,
-        margin: best
-          ? Number(
-              (
-                best.similarity - (secondDifferentImageMatch?.similarity ?? 0)
-              ).toFixed(4),
-            )
-          : undefined,
+        margin: best ? Number(best.margin.toFixed(4)) : undefined,
+        signatureVersion: 1,
+        layout: region.layout,
+        cropKind,
       });
     }
 
-    const [bestMatch] = sortedMatches;
-
-    if (!bestMatch) {
-      return undefined;
-    }
-
-    const bestImageUrl = bestMatch.card.imageUrl ?? "";
-
-    const secondDifferentImageMatch = sortedMatches.find((match) => {
-      return (match.card.imageUrl ?? "") !== bestImageUrl;
-    });
-
-    return {
-      ...bestMatch,
-      margin:
-        bestMatch.similarity - (secondDifferentImageMatch?.similarity ?? 0),
-    };
+    return rankedMatches;
   } catch {
-    return undefined;
+    return [];
   }
+}
+
+export async function findBestImageMatch(
+  photoUri: string,
+  candidates: RiftboundCard[],
+  options: ImageSignatureOptions = { cropKind: "artwork" },
+): Promise<ImageMatchResult | undefined> {
+  const [bestMatch] = await findImageMatches(
+    {
+      uri: photoUri,
+      cropKind: options.cropKind ?? "artwork",
+      source: "overlay-crop",
+      layout: "portrait",
+    },
+    {
+      candidates,
+      cropKind: options.cropKind ?? "artwork",
+      topN: 1,
+    },
+  );
+
+  return bestMatch;
 }
