@@ -1,10 +1,14 @@
-import { Buffer } from "buffer";
 import { Directory, File, Paths } from "expo-file-system";
-import { decode } from "jpeg-js";
 import type { RiftboundCard } from "../../cards/cards.types";
-import { cropScanImage } from "./scan-image-crop.service";
 import { SCAN_IMAGE_DEBUG } from "../debug/scan-debug-flag";
+import {
+  CARD_IMAGE_HISTOGRAM_BINS,
+  CARD_IMAGE_THUMBNAIL_SIZE,
+  compareCardImageSignatures,
+  createCardImageSignature,
+} from "./scan-image-signature.service";
 import type {
+  CardImageSignatureV1,
   CardImageIndexEntry,
   ImageMatchResult,
   ScanCardImageCropKind,
@@ -12,10 +16,6 @@ import type {
 } from "./scan-image-signature.types";
 
 export type { ImageMatchResult } from "./scan-image-signature.types";
-
-type ImageSignature = {
-  pixels: Uint8Array;
-};
 
 type ImageSignatureOptions = {
   cropKind?: ScanCardImageCropKind;
@@ -27,14 +27,10 @@ export type FindImageMatchesOptions = {
   cropKind?: ScanCardImageCropKind;
 };
 
-const THUMBNAIL_SIZE = 32;
-const HISTOGRAM_BINS = 64;
 const IMAGE_CACHE_DIRECTORY = new Directory(
   Paths.cache,
   "riftbound-card-images",
 );
-
-const signatureCache = new Map<string, ImageSignature>();
 
 function getImageExtension(value: string) {
   const pathname = value.split("?")[0] ?? "";
@@ -84,88 +80,32 @@ async function getLocalImageUri(uri: string) {
   return imageFile.uri;
 }
 
-function decodeJpegBase64(base64: string) {
-  return decode(Buffer.from(base64, "base64"), {
-    formatAsRGBA: true,
-    tolerantDecoding: true,
-    useTArray: true,
-  });
-}
-
 async function getImageSignature(
   uri: string,
-  options: ImageSignatureOptions = {},
+  region: Omit<ScanCardImageRegion, "uri">,
 ) {
-  const cacheKey = `${uri}:${options.cropKind ?? "none"}`;
-  const cachedSignature = signatureCache.get(cacheKey);
-
-  if (cachedSignature) {
-    return cachedSignature;
-  }
-
   const localUri = await getLocalImageUri(uri);
-  const { manipulateAsync, SaveFormat } =
-    await import("expo-image-manipulator");
-
-  const signatureSource = options.cropKind
-    ? (await cropScanImage(localUri, options.cropKind)).uri
-    : localUri;
 
   if (SCAN_IMAGE_DEBUG) {
     console.log("[IMAGE] signature source:", {
       originalUri: uri,
       localUri,
-      signatureSource,
-      cropKind: options.cropKind ?? "none",
+      cropKind: region.cropKind,
+      layout: region.layout,
+      source: region.source,
     });
   }
 
-  const normalizedImage = await manipulateAsync(
-    signatureSource,
-    [{ resize: { width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE } }],
-    {
-      base64: true,
-      compress: 0.85,
-      format: SaveFormat.JPEG,
-    },
-  );
-
-  if (!normalizedImage.base64) {
-    throw new Error("Image signature could not be created.");
-  }
-
-  const decodedImage = decodeJpegBase64(normalizedImage.base64);
-  const pixels = new Uint8Array(THUMBNAIL_SIZE * THUMBNAIL_SIZE * 3);
-
-  for (let index = 0; index < THUMBNAIL_SIZE * THUMBNAIL_SIZE; index += 1) {
-    const sourceIndex = index * 4;
-    const targetIndex = index * 3;
-
-    pixels[targetIndex] = decodedImage.data[sourceIndex];
-    pixels[targetIndex + 1] = decodedImage.data[sourceIndex + 1];
-    pixels[targetIndex + 2] = decodedImage.data[sourceIndex + 2];
-  }
-
-  const signature = { pixels };
-  signatureCache.set(cacheKey, signature);
-
-  return signature;
-}
-
-function compareSignatures(left: ImageSignature, right: ImageSignature) {
-  let totalDifference = 0;
-
-  for (let index = 0; index < left.pixels.length; index += 1) {
-    totalDifference += Math.abs(left.pixels[index] - right.pixels[index]);
-  }
-
-  return 1 - totalDifference / (left.pixels.length * 255);
+  return createCardImageSignature({
+    ...region,
+    uri: localUri,
+  });
 }
 
 function getLegacyIndexEntry(
   card: RiftboundCard & { imageUrl: string },
-  signature: ImageSignature,
-  cropKind: ScanCardImageCropKind,
+  signature: CardImageSignatureV1,
+  region: Omit<ScanCardImageRegion, "uri">,
 ): CardImageIndexEntry {
   return {
     cardId: card.id,
@@ -175,15 +115,11 @@ function getLegacyIndexEntry(
     number: card.number,
     imageUrl: card.imageUrl,
     signatureVersion: 1,
-    cropKind,
-    layout: "portrait",
-    thumbnailSize: THUMBNAIL_SIZE,
-    histogramBins: HISTOGRAM_BINS,
-    signature: {
-      rgbTiny: Array.from(signature.pixels),
-      dHash: "",
-      colorHistogram: [],
-    },
+    cropKind: region.cropKind,
+    layout: region.layout,
+    thumbnailSize: CARD_IMAGE_THUMBNAIL_SIZE,
+    histogramBins: CARD_IMAGE_HISTOGRAM_BINS,
+    signature,
   };
 }
 
@@ -231,26 +167,38 @@ export async function findImageMatches(
 
   try {
     const cropKind = options.cropKind ?? region.cropKind;
-    const photoSignature = await getImageSignature(region.uri, {
+    const signatureRegion = {
       cropKind,
-    });
+      source: region.source,
+      layout: region.layout,
+      rotationDegrees: region.rotationDegrees,
+    };
+    const photoSignature = await getImageSignature(region.uri, signatureRegion);
     const scoredCandidates: ImageMatchResult[] = [];
 
     for (const candidate of imageCandidates.slice(0, 8)) {
       try {
-        const candidateSignature = await getImageSignature(candidate.imageUrl, {
-          cropKind,
-        });
-        const score = compareSignatures(photoSignature, candidateSignature);
+        const candidateSignature = await getImageSignature(
+          candidate.imageUrl,
+          signatureRegion,
+        );
+        const comparison = compareCardImageSignatures(
+          photoSignature,
+          candidateSignature,
+        );
 
         scoredCandidates.push({
           card: candidate,
-          entry: getLegacyIndexEntry(candidate, candidateSignature, cropKind),
-          score,
+          entry: getLegacyIndexEntry(
+            candidate,
+            candidateSignature,
+            signatureRegion,
+          ),
+          score: comparison.score,
           margin: 0,
-          rgbSimilarity: score,
-          dHashSimilarity: 0,
-          histogramSimilarity: 0,
+          rgbSimilarity: comparison.rgbSimilarity,
+          dHashSimilarity: comparison.dHashSimilarity,
+          histogramSimilarity: comparison.histogramSimilarity,
           rank: 0,
         });
       } catch {
@@ -275,6 +223,8 @@ export async function findImageMatches(
           score: Number(match.score.toFixed(4)),
           margin: Number(match.margin.toFixed(4)),
           rgbSimilarity: Number(match.rgbSimilarity.toFixed(4)),
+          dHashSimilarity: Number(match.dHashSimilarity.toFixed(4)),
+          histogramSimilarity: Number(match.histogramSimilarity.toFixed(4)),
         })),
       );
 
