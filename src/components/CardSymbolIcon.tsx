@@ -1,11 +1,10 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import {
   CardIconKind,
   getColorIcon,
   getRarityIcon,
-} from '../features/cards/card-icons';
-import { theme } from '../theme';
+} from "../features/cards/card-icons";
 
 type CardSymbolIconProps = {
   kind: CardIconKind;
@@ -13,9 +12,13 @@ type CardSymbolIconProps = {
   size?: number;
 };
 
-export function CardSymbolIcon({ kind, value, size = 22 }: CardSymbolIconProps) {
-  const icon = kind === 'rarity' ? getRarityIcon(value) : getColorIcon(value);
-  const imageSize = Math.round(size * 0.9);
+export function CardSymbolIcon({
+  kind,
+  value,
+  size = 22,
+}: CardSymbolIconProps) {
+  const icon = kind === "rarity" ? getRarityIcon(value) : getColorIcon(value);
+  const imageSize = Math.round(size * 0.82);
 
   return (
     <View
@@ -34,10 +37,22 @@ export function CardSymbolIcon({ kind, value, size = 22 }: CardSymbolIconProps) 
         <Image
           resizeMode="contain"
           source={icon.source}
-          style={{ width: imageSize, height: imageSize }}
+          style={{
+            width: imageSize,
+            height: imageSize,
+          }}
         />
       ) : (
-        <Text style={[styles.fallback, { color: icon.color, fontSize: size * 0.58 }]}>
+        <Text
+          style={[
+            styles.fallback,
+            {
+              color: icon.color,
+              fontSize: size * 0.56,
+              lineHeight: size,
+            },
+          ]}
+        >
           {icon.fallback}
         </Text>
       )}
@@ -47,13 +62,14 @@ export function CardSymbolIcon({ kind, value, size = 22 }: CardSymbolIconProps) 
 
 const styles = StyleSheet.create({
   shell: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
   fallback: {
-    fontWeight: '900',
-    lineHeight: theme.spacing.lg + 2,
-    textAlign: 'center',
+    includeFontPadding: false,
+    fontWeight: "900",
+    textAlign: "center",
+    textAlignVertical: "center",
   },
 });

@@ -1,12 +1,28 @@
-import { Image, Text, View } from 'react-native';
+import { Image, Text, View } from "react-native";
 
-import { styles } from '../screens/scan-screen.styles';
+import type { RiftboundCard } from "../../cards/cards.types";
+import { isBattlefieldCard } from "../../cards/cards.service";
+import { styles } from "../screens/scan-screen.styles";
 
-export function ScanCardPreview({ imageUri }: { imageUri: string }) {
+export function ScanCardPreview({
+  card,
+  imageUri,
+}: {
+  card?: RiftboundCard;
+  imageUri: string;
+}) {
+  const shouldRotate = isBattlefieldCard(card);
+
   return (
     <View style={styles.cardImageWrap}>
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.cardImage} />
+        <Image
+          source={{ uri: imageUri }}
+          style={[
+            styles.cardImage,
+            shouldRotate && styles.cardImageBattlefield,
+          ]}
+        />
       ) : (
         <View style={styles.imagePlaceholder}>
           <Text style={styles.imagePlaceholderText}>No image</Text>
@@ -15,4 +31,3 @@ export function ScanCardPreview({ imageUri }: { imageUri: string }) {
     </View>
   );
 }
-

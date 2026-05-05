@@ -206,8 +206,8 @@ export function isRealCardexCard(card: Pick<RiftboundCard, "setCode">) {
   return CARDEX_SET_ORDER.has(card.setCode);
 }
 
-export function isBattlefieldCard(card: Pick<RiftboundCard, "type">) {
-  return card.type.toLowerCase() === "battlefield";
+export function isBattlefieldCard(card?: Pick<RiftboundCard, "type">) {
+  return Boolean(card?.type?.toLowerCase().includes("battlefield"));
 }
 
 export function getCardexVariant(

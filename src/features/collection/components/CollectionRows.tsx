@@ -1,10 +1,14 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { CardSymbolIcon } from '../../../components/CardSymbolIcon';
-import { QuantityStepper } from '../../../components/QuantityStepper';
-import { formatCardmarketPrice } from '../../cardmarket/cardmarket-prices.service';
-import { theme } from '../../../theme';
-import { CollectionEntry, CollectionPrinting, CollectionRow } from '../collection.types';
+import { CardSymbolIcon } from "../../../components/CardSymbolIcon";
+import { QuantityStepper } from "../../../components/QuantityStepper";
+import { formatCardmarketPrice } from "../../cardmarket/cardmarket-prices.service";
+import { theme } from "../../../theme";
+import {
+  CollectionEntry,
+  CollectionPrinting,
+  CollectionRow,
+} from "../collection.types";
 
 type InventoryRowProps = {
   row: CollectionRow;
@@ -18,7 +22,9 @@ type InventoryRowProps = {
 };
 
 function getCardColors(entry: CollectionEntry) {
-  const colors = entry.card.colors?.length ? entry.card.colors : [entry.card.color];
+  const colors = entry.card.colors?.length
+    ? entry.card.colors
+    : [entry.card.color];
   return [...new Set(colors.filter(Boolean))].slice(0, 2);
 }
 
@@ -50,9 +56,18 @@ export function InventoryRow({
         <View style={styles.topLine}>
           <Pressable onPress={onOpenCard} style={styles.nameWrap}>
             <View style={styles.symbolRow}>
-              <CardSymbolIcon kind="rarity" size={17} value={entry.card.rarity} />
+              <CardSymbolIcon
+                kind="rarity"
+                size={17}
+                value={entry.card.rarity}
+              />
               {colors.map((color) => (
-                <CardSymbolIcon kind="color" key={color} size={17} value={color} />
+                <CardSymbolIcon
+                  kind="color"
+                  key={color}
+                  size={17}
+                  value={color}
+                />
               ))}
             </View>
             <Text numberOfLines={1} style={styles.name}>
@@ -60,8 +75,12 @@ export function InventoryRow({
             </Text>
           </Pressable>
           <Pressable onPress={onOpenPrice} style={styles.priceButton}>
-            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.priceButtonText}>
-              {formatCardmarketPrice(row.trend)}
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={styles.priceButtonText}
+            >
+              {formatCardmarketPrice(row.displayPrice)}
             </Text>
           </Pressable>
         </View>
@@ -72,16 +91,16 @@ export function InventoryRow({
               minimal
               label="N"
               value={entry.normalQuantity}
-              onIncrement={() => onChangeQuantity(entry, 'normal', 1)}
-              onDecrement={() => onChangeQuantity(entry, 'normal', -1)}
+              onIncrement={() => onChangeQuantity(entry, "normal", 1)}
+              onDecrement={() => onChangeQuantity(entry, "normal", -1)}
             />
             <View style={styles.stepperDivider} />
             <QuantityStepper
               minimal
               label="F"
               value={entry.foilQuantity}
-              onIncrement={() => onChangeQuantity(entry, 'foil', 1)}
-              onDecrement={() => onChangeQuantity(entry, 'foil', -1)}
+              onIncrement={() => onChangeQuantity(entry, "foil", 1)}
+              onDecrement={() => onChangeQuantity(entry, "foil", -1)}
             />
           </View>
         </View>
@@ -93,8 +112,8 @@ export function InventoryRow({
 const styles = StyleSheet.create({
   inventoryRow: {
     height: 86,
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 7,
     borderWidth: 1,
     borderColor: theme.colors.panelBorder,
@@ -107,8 +126,8 @@ const styles = StyleSheet.create({
   },
   thumbnailButton: {
     width: 54,
-    height: '100%',
-    justifyContent: 'center',
+    height: "100%",
+    justifyContent: "center",
   },
   thumbnail: {
     width: 54,
@@ -124,21 +143,21 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minWidth: 0,
-    height: '100%',
-    justifyContent: 'space-between',
+    height: "100%",
+    justifyContent: "space-between",
     paddingVertical: 1,
   },
   topLine: {
     minHeight: 32,
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 6,
   },
   nameWrap: {
     flex: 1,
     minWidth: 0,
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 5,
   },
   name: {
@@ -146,16 +165,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: theme.colors.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   symbolRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 3,
   },
   priceButton: {
     minWidth: 66,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: theme.colors.controlBorder,
     borderRadius: 7,
@@ -166,18 +185,18 @@ const styles = StyleSheet.create({
   priceButtonText: {
     color: theme.colors.gold,
     fontSize: 13,
-    fontWeight: '900',
-    textAlign: 'center',
+    fontWeight: "900",
+    textAlign: "center",
   },
   bottomLine: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 6,
   },
   stepperRow: {
     flex: 1,
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 7,
   },
   stepperDivider: {

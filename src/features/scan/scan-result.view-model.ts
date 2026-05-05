@@ -72,7 +72,7 @@ export function buildScanResultViewModel({
       collection.isSavingCollection ||
       (!collection.canAddToCollection &&
         !collection.requiresResultConfirmation),
-    isPrintingSelectorVisible: display.canUseExactCard,
+    isPrintingSelectorVisible: Boolean(result.card),
     canShowPrice: display.canUseExactCard,
     primaryAction,
     printingLabel: display.isFoilLocked ? "Foil only" : "Printing",

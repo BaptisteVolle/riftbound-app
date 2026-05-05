@@ -56,8 +56,7 @@ export function ScanResultView({
         subtitle={viewModel.subtitle}
       />
 
-      <ScanCardPreview imageUri={viewModel.imageUri} />
-
+      <ScanCardPreview card={result.card} imageUri={viewModel.imageUri} />
       {viewModel.guidanceMessage ? (
         <Text style={styles.resultGuidanceText}>
           {viewModel.guidanceMessage}

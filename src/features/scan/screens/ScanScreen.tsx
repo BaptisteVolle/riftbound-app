@@ -19,8 +19,7 @@ import { ScanManualEditPanel } from "../components/ScanManualEditPanel";
 import { ScanResultView } from "../components/ScanResultView";
 import { useScanController } from "../hooks/useScanController";
 import { styles } from "./scan-screen.styles";
-import { ScanDebugImages } from "../components/ScanDebugImage";
-import React from "react";
+import { ScanDebugImages } from "../debug/ScanDebugImages";
 
 export function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);

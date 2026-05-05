@@ -1,13 +1,53 @@
 import { StyleSheet } from "react-native";
 
+const colors = {
+  background: "#071527",
+  reviewBackground: "#081E34",
+  panel: "#092A4C",
+  panelAlt: "#0B355F",
+  panelLight: "#123F6D",
+  cream: "#F8F0DC",
+  gold: "#F2B84B",
+  orange: "#E66A2C",
+  green: "#2E8B57",
+
+  creamBorderSoft: "rgba(248, 240, 220, 0.35)",
+  creamBorder: "rgba(248, 240, 220, 0.65)",
+  capturePanel: "rgba(9, 42, 76, 0.94)",
+  reviewFooter: "rgba(8, 30, 52, 0.98)",
+  darkOverlay: "rgba(7, 21, 39, 0.36)",
+};
+
+const cardAspectRatio = 0.716;
+
 export const styles = StyleSheet.create({
+  // ---------------------------------------------------------------------------
+  // Screen layout
+  // ---------------------------------------------------------------------------
   container: {
     flex: 1,
-    backgroundColor: "#071527",
+    backgroundColor: colors.background,
   },
   camera: {
     flex: 1,
   },
+  centered: {
+    flex: 1,
+    gap: 18,
+    justifyContent: "center",
+    padding: 24,
+    backgroundColor: colors.background,
+  },
+  message: {
+    color: colors.cream,
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+
+  // ---------------------------------------------------------------------------
+  // Capture mode
+  // ---------------------------------------------------------------------------
   capturePanel: {
     position: "absolute",
     right: 18,
@@ -17,41 +57,45 @@ export const styles = StyleSheet.create({
   captureBar: {
     gap: 10,
     borderWidth: 2,
-    borderColor: "#F8F0DC",
+    borderColor: colors.cream,
     borderRadius: 16,
     padding: 14,
-    backgroundColor: "rgba(9, 42, 76, 0.94)",
+    backgroundColor: colors.capturePanel,
   },
   captureTitle: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 18,
     fontWeight: "900",
     textAlign: "center",
   },
   captureHint: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 13,
     fontWeight: "700",
     textAlign: "center",
   },
   captureError: {
     borderWidth: 2,
-    borderColor: "#F8F0DC",
+    borderColor: colors.cream,
     borderRadius: 12,
     padding: 10,
-    backgroundColor: "#E66A2C",
-    color: "#F8F0DC",
+    backgroundColor: colors.orange,
+    color: colors.cream,
     fontSize: 14,
     fontWeight: "800",
     textAlign: "center",
   },
+
+  // ---------------------------------------------------------------------------
+  // Review layout
+  // ---------------------------------------------------------------------------
   reviewPanel: {
     position: "absolute",
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: "#081E34",
+    backgroundColor: colors.reviewBackground,
     overflow: "hidden",
   },
   reviewLayout: {
@@ -67,10 +111,10 @@ export const styles = StyleSheet.create({
   },
   reviewFooter: {
     borderTopWidth: 2,
-    borderTopColor: "rgba(248, 240, 220, 0.35)",
+    borderTopColor: colors.creamBorderSoft,
     padding: 14,
     paddingTop: 12,
-    backgroundColor: "rgba(8, 30, 52, 0.98)",
+    backgroundColor: colors.reviewFooter,
   },
   newScanButton: {
     width: "100%",
@@ -82,11 +126,15 @@ export const styles = StyleSheet.create({
     fontSize: 20,
     letterSpacing: 0,
   },
+
+  // ---------------------------------------------------------------------------
+  // Loading state
+  // ---------------------------------------------------------------------------
   loadingScreen: {
     flex: 1,
     justifyContent: "center",
     padding: 18,
-    backgroundColor: "#081E34",
+    backgroundColor: colors.reviewBackground,
   },
   scanLoadingPanel: {
     alignItems: "center",
@@ -95,40 +143,28 @@ export const styles = StyleSheet.create({
     width: "100%",
     minHeight: 112,
     borderWidth: 2,
-    borderColor: "#F2B84B",
+    borderColor: colors.gold,
     borderRadius: 14,
     padding: 18,
-    backgroundColor: "#092A4C",
+    backgroundColor: colors.panel,
   },
   scanLoadingText: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 15,
     fontWeight: "900",
     textAlign: "center",
   },
-  checkingPanel: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-    borderWidth: 2,
-    borderColor: "#F2B84B",
-    borderRadius: 14,
-    padding: 10,
-    backgroundColor: "#092A4C",
-  },
-  checkingText: {
-    flex: 1,
-    color: "#F8F0DC",
-    fontSize: 13,
-    fontWeight: "900",
-  },
+
+  // ---------------------------------------------------------------------------
+  // Result panel
+  // ---------------------------------------------------------------------------
   candidatePanel: {
     gap: 9,
     borderWidth: 2,
-    borderColor: "#F2B84B",
+    borderColor: colors.gold,
     borderRadius: 14,
     padding: 10,
-    backgroundColor: "#123F6D",
+    backgroundColor: colors.panelLight,
   },
   resultHeaderRow: {
     alignItems: "flex-start",
@@ -140,7 +176,7 @@ export const styles = StyleSheet.create({
     gap: 3,
   },
   resultTitle: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 16,
     fontWeight: "900",
     textAlign: "center",
@@ -149,18 +185,22 @@ export const styles = StyleSheet.create({
     textAlign: "left",
   },
   resultSubtitle: {
-    color: "#F2B84B",
+    color: colors.gold,
     fontSize: 12,
     fontWeight: "900",
     lineHeight: 15,
     textAlign: "left",
   },
   resultGuidanceText: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 12,
     fontWeight: "800",
     textAlign: "center",
   },
+
+  // ---------------------------------------------------------------------------
+  // Card preview
+  // ---------------------------------------------------------------------------
   cardImageWrap: {
     alignItems: "center",
     paddingHorizontal: 8,
@@ -168,28 +208,35 @@ export const styles = StyleSheet.create({
   cardImage: {
     width: "78%",
     maxWidth: 300,
-    aspectRatio: 0.716,
+    aspectRatio: cardAspectRatio,
     borderWidth: 2,
-    borderColor: "#F8F0DC",
+    borderColor: colors.cream,
     borderRadius: 10,
-    backgroundColor: "#071527",
+    backgroundColor: colors.background,
+  },
+  cardImageBattlefield: {
+    transform: [{ rotate: "90deg" }],
   },
   imagePlaceholder: {
     alignItems: "center",
     justifyContent: "center",
     width: "78%",
     maxWidth: 300,
-    aspectRatio: 0.716,
+    aspectRatio: cardAspectRatio,
     borderWidth: 2,
-    borderColor: "#F8F0DC",
+    borderColor: colors.cream,
     borderRadius: 10,
-    backgroundColor: "#071527",
+    backgroundColor: colors.background,
   },
   imagePlaceholderText: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 12,
     fontWeight: "900",
   },
+
+  // ---------------------------------------------------------------------------
+  // Confidence badge
+  // ---------------------------------------------------------------------------
   confidenceBadge: {
     alignSelf: "flex-start",
     flexShrink: 0,
@@ -198,22 +245,26 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   searchBadge: {
-    backgroundColor: "#E66A2C",
+    backgroundColor: colors.orange,
   },
   confidenceBadgeExact: {
-    backgroundColor: "#2E8B57",
+    backgroundColor: colors.green,
   },
   confidenceBadgeLikely: {
-    backgroundColor: "#F2B84B",
+    backgroundColor: colors.gold,
   },
   confidenceBadgeUncertain: {
-    backgroundColor: "#E66A2C",
+    backgroundColor: colors.orange,
   },
   confidenceText: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 12,
     fontWeight: "900",
   },
+
+  // ---------------------------------------------------------------------------
+  // Price block
+  // ---------------------------------------------------------------------------
   priceBlock: {
     alignSelf: "stretch",
     gap: 6,
@@ -229,44 +280,33 @@ export const styles = StyleSheet.create({
   priceMetric: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(248, 240, 220, 0.65)",
+    borderColor: colors.creamBorder,
     borderRadius: 10,
     paddingVertical: 7,
     paddingHorizontal: 6,
-    backgroundColor: "rgba(7, 21, 39, 0.36)",
+    backgroundColor: colors.darkOverlay,
   },
   priceMetricLabel: {
-    color: "#F2B84B",
+    color: colors.gold,
     fontSize: 9,
     fontWeight: "900",
     textAlign: "center",
     textTransform: "uppercase",
   },
   priceMetricValue: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 13,
     fontWeight: "900",
     textAlign: "center",
   },
   priceStatusText: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 13,
     fontWeight: "800",
     minHeight: 52,
     textAlignVertical: "center",
     textAlign: "center",
   },
-  resultActionRow: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: 10,
-  },
-  cardPriceButtonColumn: {
-    flex: 1,
-    alignSelf: "stretch",
-    justifyContent: "flex-end",
-  },
-
   cardPriceButton: {
     width: "100%",
     minHeight: 45,
@@ -274,133 +314,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 6,
   },
+
   cardPriceButtonLabel: {
     fontSize: 13,
     lineHeight: 16,
   },
-  editDropdownPanel: {
-    gap: 10,
-    borderWidth: 2,
-    borderColor: "#F8F0DC",
-    borderRadius: 14,
-    padding: 10,
-    backgroundColor: "#092A4C",
-  },
-  editToggle: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  editToggleText: {
-    color: "#F8F0DC",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  editToggleIcon: {
-    minWidth: 26,
-    color: "#F2B84B",
-    fontSize: 22,
-    fontWeight: "900",
-    lineHeight: 24,
-    textAlign: "center",
-  },
-  inlineEditPanel: {
-    gap: 9,
-  },
-  candidateStrip: {
-    gap: 7,
-    borderWidth: 2,
-    borderColor: "#F8F0DC",
-    borderRadius: 14,
-    padding: 8,
-    backgroundColor: "#092A4C",
-  },
-  candidateStripHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  candidateStripTitle: {
-    color: "#F2B84B",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  candidateStripHint: {
-    color: "#F8F0DC",
-    fontSize: 11,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  candidateStripList: {
-    gap: 10,
-    paddingRight: 2,
-  },
-  candidateTile: {
-    width: 84,
-    gap: 4,
-    borderWidth: 2,
-    borderColor: "#F8F0DC",
-    borderRadius: 12,
-    padding: 6,
-    backgroundColor: "#123F6D",
-  },
-  candidateTileImage: {
-    width: "100%",
-    aspectRatio: 0.716,
-    borderRadius: 8,
-    backgroundColor: "#071527",
-  },
-  candidateTileImagePlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-    aspectRatio: 0.716,
-    borderRadius: 8,
-    backgroundColor: "#071527",
-  },
-  candidateTileName: {
-    color: "#F8F0DC",
-    fontSize: 10,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  candidateTileMeta: {
-    color: "#F2B84B",
-    fontSize: 10,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  statusMessage: {
-    borderWidth: 2,
-    borderColor: "#F8F0DC",
-    borderRadius: 12,
-    padding: 10,
-    backgroundColor: "#0B355F",
-    color: "#F8F0DC",
-    fontSize: 13,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  collectionOptions: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: 10,
-  },
-  quantityControl: {
-    flex: 1,
-    gap: 6,
-  },
-  printingControl: {
-    width: "100%",
-    gap: 6,
-  },
-  optionLabel: {
-    color: "#F8F0DC",
-    fontSize: 10,
-    fontWeight: "900",
-    textAlign: "center",
-  },
+
   stepperRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -408,6 +327,100 @@ export const styles = StyleSheet.create({
     gap: 6,
     minHeight: 45,
   },
+
+  // ---------------------------------------------------------------------------
+  // Shared controls
+  // ---------------------------------------------------------------------------
+  controlRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  controlLabel: {
+    minHeight: 13,
+    color: colors.cream,
+    fontSize: 10,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  controlColumn: {
+    flex: 1,
+    gap: 6,
+  },
+  fullWidthControl: {
+    width: "100%",
+  },
+  row: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  input: {
+    borderWidth: 2,
+    borderColor: colors.gold,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.cream,
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  compactInput: {
+    flex: 1,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Printing selector
+  // ---------------------------------------------------------------------------
+  printingControl: {
+    width: "100%",
+    gap: 6,
+  },
+  optionLabel: {
+    color: colors.cream,
+    fontSize: 10,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    borderWidth: 2,
+    borderColor: colors.cream,
+    borderRadius: 8,
+    minHeight: 45,
+    overflow: "hidden",
+  },
+  segmentButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    backgroundColor: colors.panelLight,
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.gold,
+  },
+  segmentButtonDisabled: {
+    opacity: 0.55,
+  },
+  segmentText: {
+    color: colors.cream,
+    fontSize: 11,
+    fontWeight: "900",
+    lineHeight: 13,
+    textAlign: "center",
+  },
+  segmentTextActive: {
+    color: colors.background,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Collection controls
+  // ---------------------------------------------------------------------------
+
   stepperButton: {
     borderRadius: 8,
     flex: 1,
@@ -419,7 +432,7 @@ export const styles = StyleSheet.create({
   },
   quantityValue: {
     minWidth: 26,
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 20,
     fontWeight: "900",
     textAlign: "center",
@@ -435,107 +448,133 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 16,
   },
-  controlRow: {
+  collectionMessage: {
+    color: colors.cream,
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  // ---------------------------------------------------------------------------
+  // Candidate strip
+  // ---------------------------------------------------------------------------
+  candidateStrip: {
+    gap: 7,
+    borderWidth: 2,
+    borderColor: colors.cream,
+    borderRadius: 14,
+    padding: 8,
+    backgroundColor: colors.panel,
+  },
+  candidateStripHeader: {
+    alignItems: "center",
     flexDirection: "row",
-    alignItems: "flex-end",
+    justifyContent: "space-between",
     gap: 10,
   },
-
-  controlColumn: {
-    flex: 1,
-    gap: 6,
+  candidateStripTitle: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: "900",
   },
-
-  controlLabel: {
-    minHeight: 13,
-    color: "#F8F0DC",
+  candidateStripHint: {
+    color: colors.cream,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  candidateStripList: {
+    gap: 10,
+    paddingRight: 2,
+  },
+  candidateTile: {
+    width: 84,
+    gap: 4,
+    borderWidth: 2,
+    borderColor: colors.cream,
+    borderRadius: 12,
+    padding: 6,
+    backgroundColor: colors.panelLight,
+  },
+  candidateTileImage: {
+    width: "100%",
+    aspectRatio: cardAspectRatio,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+  },
+  candidateTileImagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    aspectRatio: cardAspectRatio,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+  },
+  candidateTileName: {
+    color: colors.cream,
+    fontSize: 10,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  candidateTileMeta: {
+    color: colors.gold,
     fontSize: 10,
     fontWeight: "900",
     textAlign: "center",
   },
 
-  controlHeight: {
-    minHeight: 45,
-  },
-
-  fullWidthControl: {
-    width: "100%",
-  },
-
-  segmentedControl: {
-    flexDirection: "row",
-    borderWidth: 2,
-    borderColor: "#F8F0DC",
-    borderRadius: 8,
-    minHeight: 45,
-    overflow: "hidden",
-  },
-  segmentButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 6,
-    backgroundColor: "#123F6D",
-  },
-  segmentButtonActive: {
-    backgroundColor: "#F2B84B",
-  },
-  segmentButtonDisabled: {
-    opacity: 0.55,
-  },
-  segmentText: {
-    color: "#F8F0DC",
-    fontSize: 11,
-    fontWeight: "900",
-    lineHeight: 13,
-    textAlign: "center",
-  },
-  segmentTextActive: {
-    color: "#071527",
-  },
-  collectionMessage: {
-    color: "#F8F0DC",
-    fontSize: 12,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  row: {
-    flexDirection: "row",
+  // ---------------------------------------------------------------------------
+  // Manual edit panel
+  // ---------------------------------------------------------------------------
+  editDropdownPanel: {
     gap: 10,
-  },
-  input: {
     borderWidth: 2,
-    borderColor: "#F2B84B",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#F8F0DC",
-    color: "#071527",
-    fontSize: 16,
-    fontWeight: "800",
+    borderColor: colors.cream,
+    borderRadius: 14,
+    padding: 10,
+    backgroundColor: colors.panel,
   },
-  compactInput: {
-    flex: 1,
+  editToggle: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  actionButton: {
-    flex: 1,
+  editToggleText: {
+    color: colors.cream,
+    fontSize: 13,
+    fontWeight: "900",
   },
+  editToggleIcon: {
+    minWidth: 26,
+    color: colors.gold,
+    fontSize: 22,
+    fontWeight: "900",
+    lineHeight: 24,
+    textAlign: "center",
+  },
+  inlineEditPanel: {
+    gap: 9,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Failed state
+  // ---------------------------------------------------------------------------
   failedPanel: {
     gap: 10,
     borderWidth: 2,
-    borderColor: "#E66A2C",
+    borderColor: colors.orange,
     borderRadius: 14,
     padding: 10,
-    backgroundColor: "#092A4C",
+    backgroundColor: colors.panel,
   },
   failedTitle: {
-    color: "#F2B84B",
+    color: colors.gold,
     fontSize: 15,
     fontWeight: "900",
     textAlign: "center",
   },
   failedMessage: {
-    color: "#F8F0DC",
+    color: colors.cream,
     fontSize: 13,
     fontWeight: "800",
     textAlign: "center",
@@ -547,17 +586,19 @@ export const styles = StyleSheet.create({
   failedActionButton: {
     flex: 1,
   },
-  centered: {
-    flex: 1,
-    gap: 18,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#071527",
-  },
-  message: {
-    color: "#F8F0DC",
-    fontSize: 22,
-    fontWeight: "900",
+
+  // ---------------------------------------------------------------------------
+  // Status
+  // ---------------------------------------------------------------------------
+  statusMessage: {
+    borderWidth: 2,
+    borderColor: colors.cream,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: colors.panelAlt,
+    color: colors.cream,
+    fontSize: 13,
+    fontWeight: "800",
     textAlign: "center",
   },
 });

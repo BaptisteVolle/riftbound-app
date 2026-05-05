@@ -1,10 +1,18 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
-import { AppPanel } from '../src/components/AppPanel';
-import { Button } from '../src/components/Button';
-import { DropdownSelect } from '../src/components/DropdownSelect';
+import { AppPanel } from "../src/components/AppPanel";
+import { Button } from "../src/components/Button";
+import { DropdownSelect } from "../src/components/DropdownSelect";
 import {
   CardmarketPriceCacheStatus,
   forceRefreshCardmarketPriceData,
@@ -12,24 +20,27 @@ import {
   formatRefreshWaitTime,
   getCardmarketPriceCacheStatus,
   getCardmarketPriceForCard,
-} from '../src/features/cardmarket/cardmarket-prices.service';
-import { CardmarketPriceSummary } from '../src/features/cardmarket/cardmarket.types';
+} from "../src/features/cardmarket/cardmarket-prices.service";
+import { CardmarketPriceSummary } from "../src/features/cardmarket/cardmarket.types";
 import {
   buildCardmarketSearchUrl,
   getCardexCards,
   getOpenableCardmarketUrlForCard,
-} from '../src/features/cards/cards.service';
+} from "../src/features/cards/cards.service";
 import {
   addCardToCollection,
   getCollection,
   getCollectionCardKey,
   removeCardFromCollection,
   toCollectionCardSnapshot,
-} from '../src/features/collection/collection.service';
-import { getCollectionCompletionStats } from '../src/features/collection/collection-stats.service';
-import { CollectionCompletionPanel } from '../src/features/collection/components/CollectionCompletionPanel';
-import { InventoryRow } from '../src/features/collection/components/CollectionRows';
-import { CollectionEntry, CollectionPrinting } from '../src/features/collection/collection.types';
+} from "../src/features/collection/collection.service";
+import { getCollectionCompletionStats } from "../src/features/collection/collection-stats.service";
+import { CollectionCompletionPanel } from "../src/features/collection/components/CollectionCompletionPanel";
+import { InventoryRow } from "../src/features/collection/components/CollectionRows";
+import {
+  CollectionEntry,
+  CollectionPrinting,
+} from "../src/features/collection/collection.types";
 import {
   COLLECTION_SORT_OPTIONS,
   CollectionPrintingFilter,
@@ -37,34 +48,42 @@ import {
   CollectionSortKey,
   buildCollectionRow,
   sortCollectionRows,
-} from '../src/features/collection/collection-view-model';
-import { theme } from '../src/theme';
+} from "../src/features/collection/collection-view-model";
+import { theme } from "../src/theme";
 
-type OwnershipFilter = 'owned' | 'all' | 'not-owned';
+type OwnershipFilter = "owned" | "all" | "not-owned";
 
 function getOptionValues(values: string[]) {
-  return ['ALL', ...new Set(values.filter(Boolean).sort((a, b) => a.localeCompare(b)))];
+  return [
+    "ALL",
+    ...new Set(values.filter(Boolean).sort((a, b) => a.localeCompare(b))),
+  ];
 }
 
 function toDropdownOptions<TValue extends string>(values: readonly TValue[]) {
   return values.map((value) => ({
-    label: value === 'ALL' ? 'All' : value,
+    label: value === "ALL" ? "All" : value,
     value,
   }));
 }
 
 export default function CollectionScreen() {
   const [collection, setCollection] = useState<CollectionEntry[]>([]);
-  const [pricesByKey, setPricesByKey] = useState<Record<string, CardmarketPriceSummary | undefined>>({});
-  const [query, setQuery] = useState('');
-  const [setFilter, setSetFilter] = useState('ALL');
-  const [colorFilter, setColorFilter] = useState('ALL');
-  const [rarityFilter, setRarityFilter] = useState('ALL');
-  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>('owned');
-  const [printingFilter, setPrintingFilter] = useState<CollectionPrintingFilter>('all');
-  const [sortKey, setSortKey] = useState<CollectionSortKey>('set');
-  const [sortDirection, setSortDirection] = useState<CollectionSortDirection>('asc');
-  const [toastMessage, setToastMessage] = useState('');
+  const [pricesByKey, setPricesByKey] = useState<
+    Record<string, CardmarketPriceSummary | undefined>
+  >({});
+  const [query, setQuery] = useState("");
+  const [setFilter, setSetFilter] = useState("ALL");
+  const [colorFilter, setColorFilter] = useState("ALL");
+  const [rarityFilter, setRarityFilter] = useState("ALL");
+  const [ownershipFilter, setOwnershipFilter] =
+    useState<OwnershipFilter>("owned");
+  const [printingFilter, setPrintingFilter] =
+    useState<CollectionPrintingFilter>("all");
+  const [sortKey, setSortKey] = useState<CollectionSortKey>("set");
+  const [sortDirection, setSortDirection] =
+    useState<CollectionSortDirection>("asc");
+  const [toastMessage, setToastMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [priceCacheStatus, setPriceCacheStatus] =
     useState<CardmarketPriceCacheStatus>();
@@ -91,7 +110,7 @@ export default function CollectionScreen() {
         })
         .catch(() => {
           if (isActive) {
-            showToast('Collection could not be loaded.');
+            showToast("Collection could not be loaded.");
             setIsLoading(false);
           }
         });
@@ -107,7 +126,7 @@ export default function CollectionScreen() {
     () => new Map(collection.map((entry) => [entry.cardKey, entry])),
     [collection],
   );
-  const displayEntries = useMemo(
+  const catalogEntries = useMemo(
     () =>
       catalogCards.map((card) => {
         const cardKey = getCollectionCardKey(card);
@@ -122,52 +141,33 @@ export default function CollectionScreen() {
           card: toCollectionCardSnapshot(card),
           normalQuantity: 0,
           foilQuantity: 0,
-          language: 'EN',
-          condition: 'NM',
-          createdAt: '',
-          updatedAt: '',
+          language: "EN",
+          condition: "NM",
+          createdAt: "",
+          updatedAt: "",
         } satisfies CollectionEntry;
       }),
     [catalogCards, collectionByKey],
   );
-  const displayPriceKey = useMemo(
-    () => displayEntries.map((entry) => entry.cardKey).join('|'),
-    [displayEntries],
-  );
 
-  const getPricesForCollection = useCallback(
-    async (entries: CollectionEntry[]) => {
-      const nextPrices = await Promise.all(
-        entries.map(async (entry) => {
-          const price = await getCardmarketPriceForCard(entry.card).catch(() => undefined);
-          return [entry.cardKey, price] as const;
-        }),
-      );
-      return Object.fromEntries(nextPrices);
-    },
-    [],
-  );
+  const displayEntries = useMemo(() => {
+    if (ownershipFilter === "owned") {
+      return collection;
+    }
 
-  useEffect(() => {
-    let isActive = true;
+    return catalogEntries;
+  }, [catalogEntries, collection, ownershipFilter]);
 
-    getPricesForCollection(displayEntries).then((nextPrices) => {
-      if (isActive) {
-        setPricesByKey(nextPrices);
-      }
-    });
+  const COLLECTION_PAGE_SIZE = 60;
 
-    return () => {
-      isActive = false;
-    };
-  }, [displayPriceKey, getPricesForCollection]);
+  const [visibleCount, setVisibleCount] = useState(COLLECTION_PAGE_SIZE);
 
   useEffect(() => {
     if (!toastMessage) {
       return;
     }
 
-    const timeout = setTimeout(() => setToastMessage(''), 1000);
+    const timeout = setTimeout(() => setToastMessage(""), 1000);
 
     return () => clearTimeout(timeout);
   }, [toastMessage]);
@@ -176,61 +176,72 @@ export default function CollectionScreen() {
     () => getCollectionCompletionStats(collection),
     [collection],
   );
-  const setOptions = useMemo(() => getOptionValues(displayEntries.map((entry) => entry.card.setCode)), [displayEntries]);
+  const setOptions = useMemo(
+    () => getOptionValues(catalogEntries.map((entry) => entry.card.setCode)),
+    [catalogEntries],
+  );
   const colorOptions = useMemo(
     () =>
       getOptionValues(
-        displayEntries.flatMap((entry) =>
+        catalogEntries.flatMap((entry) =>
           entry.card.colors?.length ? entry.card.colors : [entry.card.color],
         ),
       ),
-    [displayEntries],
+    [catalogEntries],
   );
   const rarityOptions = useMemo(
-    () => getOptionValues(displayEntries.map((entry) => entry.card.rarity ?? entry.card.type)),
-    [displayEntries],
+    () =>
+      getOptionValues(
+        catalogEntries.map((entry) => entry.card.rarity ?? entry.card.type),
+      ),
+    [catalogEntries],
   );
   const rows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const builtRows = displayEntries.map((entry) => buildCollectionRow(entry, pricesByKey[entry.cardKey]));
+    const builtRows = displayEntries.map((entry) =>
+      buildCollectionRow(entry, pricesByKey[entry.cardKey]),
+    );
 
     const filteredRows = builtRows.filter((row) => {
       const { entry } = row;
       const rarity = entry.card.rarity ?? entry.card.type;
       const isOwned = row.totalQuantity > 0;
-      const colorHaystack = entry.card.colors?.join(' ') ?? entry.card.color;
-      const haystack = `${entry.card.name} ${entry.card.set} ${entry.card.setCode} ${entry.card.number} ${colorHaystack} ${rarity}`
-        .toLowerCase();
+      const colorHaystack = entry.card.colors?.join(" ") ?? entry.card.color;
+      const haystack =
+        `${entry.card.name} ${entry.card.set} ${entry.card.setCode} ${entry.card.number} ${colorHaystack} ${rarity}`.toLowerCase();
 
       if (normalizedQuery && !haystack.includes(normalizedQuery)) {
         return false;
       }
 
-      if (setFilter !== 'ALL' && entry.card.setCode !== setFilter) {
+      if (setFilter !== "ALL" && entry.card.setCode !== setFilter) {
         return false;
       }
 
-      if (colorFilter !== 'ALL' && !(entry.card.colors ?? [entry.card.color]).includes(colorFilter)) {
+      if (
+        colorFilter !== "ALL" &&
+        !(entry.card.colors ?? [entry.card.color]).includes(colorFilter)
+      ) {
         return false;
       }
 
-      if (rarityFilter !== 'ALL' && rarity !== rarityFilter) {
+      if (rarityFilter !== "ALL" && rarity !== rarityFilter) {
         return false;
       }
 
-      if (ownershipFilter === 'owned' && !isOwned) {
+      if (ownershipFilter === "owned" && !isOwned) {
         return false;
       }
 
-      if (ownershipFilter === 'not-owned' && isOwned) {
+      if (ownershipFilter === "not-owned" && isOwned) {
         return false;
       }
 
-      if (printingFilter === 'normal' && entry.normalQuantity <= 0) {
+      if (printingFilter === "normal" && entry.normalQuantity <= 0) {
         return false;
       }
 
-      if (printingFilter === 'foil' && entry.foilQuantity <= 0) {
+      if (printingFilter === "foil" && entry.foilQuantity <= 0) {
         return false;
       }
 
@@ -238,27 +249,113 @@ export default function CollectionScreen() {
     });
 
     return sortCollectionRows(filteredRows, sortKey, sortDirection);
-  }, [colorFilter, displayEntries, ownershipFilter, pricesByKey, printingFilter, query, rarityFilter, setFilter, sortDirection, sortKey]);
+  }, [
+    colorFilter,
+    displayEntries,
+    ownershipFilter,
+    pricesByKey,
+    printingFilter,
+    query,
+    rarityFilter,
+    setFilter,
+    sortDirection,
+    sortKey,
+  ]);
+
+  const visibleRows = useMemo(() => {
+    return rows.slice(0, visibleCount);
+  }, [rows, visibleCount]);
+
+  const visiblePriceKey = useMemo(
+    () => visibleRows.map((row) => row.entry.cardKey).join("|"),
+    [visibleRows],
+  );
+
+  useEffect(() => {
+    setVisibleCount(COLLECTION_PAGE_SIZE);
+  }, [
+    colorFilter,
+    ownershipFilter,
+    printingFilter,
+    query,
+    rarityFilter,
+    setFilter,
+    sortDirection,
+    sortKey,
+  ]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const missingPriceEntries = visibleRows
+      .map((row) => row.entry)
+      .filter((entry) => !pricesByKey[entry.cardKey]);
+
+    if (missingPriceEntries.length === 0) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    Promise.all(
+      missingPriceEntries.map(async (entry) => {
+        const price = await getCardmarketPriceForCard(entry.card).catch(
+          () => undefined,
+        );
+
+        return [entry.cardKey, price] as const;
+      }),
+    ).then((nextPrices) => {
+      if (!isActive) {
+        return;
+      }
+
+      setPricesByKey((currentPrices) => ({
+        ...currentPrices,
+        ...Object.fromEntries(nextPrices),
+      }));
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [visiblePriceKey, pricesByKey]);
+
   const filteredCardIds = useMemo(
     () => rows.map((row) => row.entry.card.id),
     [rows],
   );
-  const setFilterOptions = useMemo(() => toDropdownOptions(setOptions), [setOptions]);
-  const colorFilterOptions = useMemo(() => toDropdownOptions(colorOptions), [colorOptions]);
-  const rarityFilterOptions = useMemo(() => toDropdownOptions(rarityOptions), [rarityOptions]);
+
+  const setFilterOptions = useMemo(
+    () => toDropdownOptions(setOptions),
+    [setOptions],
+  );
+  const colorFilterOptions = useMemo(
+    () => toDropdownOptions(colorOptions),
+    [colorOptions],
+  );
+  const rarityFilterOptions = useMemo(
+    () => toDropdownOptions(rarityOptions),
+    [rarityOptions],
+  );
   const printingFilterOptions = useMemo(
     () =>
       [
-        { label: 'All', value: 'all' },
-        { label: 'Normal', value: 'normal' },
-        { label: 'Foil', value: 'foil' },
+        { label: "All", value: "all" },
+        { label: "Normal", value: "normal" },
+        { label: "Foil", value: "foil" },
       ] satisfies Array<{ label: string; value: CollectionPrintingFilter }>,
     [],
   );
   const sortOptions = useMemo(
     () =>
       COLLECTION_SORT_OPTIONS.map((value) => ({
-        label: value.toUpperCase(),
+        label:
+          value === "set"
+            ? "Set / Number"
+            : value === "price"
+              ? "Price"
+              : value.toUpperCase(),
         value,
       })),
     [],
@@ -266,8 +363,8 @@ export default function CollectionScreen() {
   const sortDirectionOptions = useMemo(
     () =>
       [
-        { label: 'Ascending', value: 'asc' },
-        { label: 'Descending', value: 'desc' },
+        { label: "Ascending", value: "asc" },
+        { label: "Descending", value: "desc" },
       ] satisfies Array<{ label: string; value: CollectionSortDirection }>,
     [],
   );
@@ -286,9 +383,12 @@ export default function CollectionScreen() {
     const entryIndex = nextCollection.findIndex(
       (entry) => entry.cardKey === targetEntry.cardKey,
     );
-    const existingEntry = entryIndex >= 0 ? nextCollection[entryIndex] : targetEntry;
+    const existingEntry =
+      entryIndex >= 0 ? nextCollection[entryIndex] : targetEntry;
     const currentQuantity =
-      printing === 'foil' ? existingEntry.foilQuantity : existingEntry.normalQuantity;
+      printing === "foil"
+        ? existingEntry.foilQuantity
+        : existingEntry.normalQuantity;
 
     if (delta < 0 && currentQuantity <= 0) {
       return currentCollection;
@@ -297,11 +397,11 @@ export default function CollectionScreen() {
     const nextEntry = {
       ...existingEntry,
       normalQuantity:
-        printing === 'normal'
+        printing === "normal"
           ? Math.max(0, existingEntry.normalQuantity + delta)
           : existingEntry.normalQuantity,
       foilQuantity:
-        printing === 'foil'
+        printing === "foil"
           ? Math.max(0, existingEntry.foilQuantity + delta)
           : existingEntry.foilQuantity,
       updatedAt: new Date().toISOString(),
@@ -324,7 +424,7 @@ export default function CollectionScreen() {
     delta: number,
   ) {
     const currentQuantity =
-      printing === 'foil' ? entry.foilQuantity : entry.normalQuantity;
+      printing === "foil" ? entry.foilQuantity : entry.normalQuantity;
 
     if (delta < 0 && currentQuantity <= 0) {
       return;
@@ -333,7 +433,11 @@ export default function CollectionScreen() {
     setCollection((currentCollection) =>
       applyLocalQuantityChange(currentCollection, entry, printing, delta),
     );
-    showToast(delta > 0 ? '1 card added to collection' : '1 card removed from collection');
+    showToast(
+      delta > 0
+        ? "1 card added to collection"
+        : "1 card removed from collection",
+    );
 
     try {
       if (delta > 0) {
@@ -342,29 +446,33 @@ export default function CollectionScreen() {
         await removeCardFromCollection(entry.cardKey, printing);
       }
     } catch {
-      showToast('Collection update failed.');
+      showToast("Collection update failed.");
       await loadCollection();
     }
   }
 
   async function openPrice(entry: CollectionEntry) {
-    showToast('Checking Cardmarket page...');
+    showToast("Checking Cardmarket page...");
 
     const resolvedUrl = await getOpenableCardmarketUrlForCard(entry.card, {
       printing:
-        entry.foilQuantity > 0 && entry.normalQuantity === 0 ? 'foil' : 'normal',
+        entry.foilQuantity > 0 && entry.normalQuantity === 0
+          ? "foil"
+          : "normal",
     });
-    const url = resolvedUrl.url ?? buildCardmarketSearchUrl({
-      name: entry.card.name,
-    });
+    const url =
+      resolvedUrl.url ??
+      buildCardmarketSearchUrl({
+        name: entry.card.name,
+      });
 
     if (!url) {
-      showToast('No Cardmarket URL found for this card.');
+      showToast("No Cardmarket URL found for this card.");
       return;
     }
 
-    if (resolvedUrl.mode === 'search') {
-      showToast('Opening Cardmarket search.');
+    if (resolvedUrl.mode === "search") {
+      showToast("Opening Cardmarket search.");
     }
 
     Linking.openURL(url);
@@ -372,10 +480,10 @@ export default function CollectionScreen() {
 
   function openCard(entry: CollectionEntry) {
     router.push({
-      pathname: '/card/[id]',
+      pathname: "/card/[id]",
       params: {
         id: entry.card.id,
-        ids: filteredCardIds.join(','),
+        ids: filteredCardIds.join(","),
       },
     });
   }
@@ -389,8 +497,8 @@ export default function CollectionScreen() {
       setPriceCacheStatus(nextStatus);
 
       if (result.didRefresh) {
-        setPricesByKey(await getPricesForCollection(displayEntries));
-        showToast('Cardmarket prices refreshed.');
+        setPricesByKey({});
+        showToast("Cardmarket prices refreshed.");
       } else {
         showToast(
           `Prices refreshed recently. Wait ${formatRefreshWaitTime(
@@ -399,7 +507,7 @@ export default function CollectionScreen() {
         );
       }
     } catch {
-      showToast('Could not refresh prices.');
+      showToast("Could not refresh prices.");
       setPriceCacheStatus(await getCardmarketPriceCacheStatus());
     } finally {
       setIsRefreshingPrices(false);
@@ -410,8 +518,8 @@ export default function CollectionScreen() {
     isRefreshingPrices ||
     Boolean(
       priceCacheStatus &&
-        !priceCacheStatus.canForceRefresh &&
-        priceCacheStatus.forceRefreshAvailableInMs > 0,
+      !priceCacheStatus.canForceRefresh &&
+      priceCacheStatus.forceRefreshAvailableInMs > 0,
     );
 
   return (
@@ -422,7 +530,7 @@ export default function CollectionScreen() {
         <CollectionCompletionPanel
           collapsedByDefault
           stats={completionStats}
-          sections={['sets', 'rarities', 'colors']}
+          sections={["sets", "rarities", "colors"]}
         />
 
         <AppPanel style={styles.priceSyncPanel}>
@@ -436,10 +544,10 @@ export default function CollectionScreen() {
             disabled={priceRefreshDisabled}
             label={
               isRefreshingPrices
-                ? 'UPDATING...'
+                ? "UPDATING..."
                 : priceCacheStatus?.canForceRefresh === false
                   ? `WAIT ${formatRefreshWaitTime(priceCacheStatus.forceRefreshAvailableInMs)}`
-                  : 'REFRESH'
+                  : "REFRESH"
             }
             tone="blue"
             style={styles.priceSyncButton}
@@ -451,7 +559,13 @@ export default function CollectionScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           onChangeText={setQuery}
-          placeholder="Filter owned cards..."
+          placeholder={
+            ownershipFilter === "owned"
+              ? "Filter owned cards..."
+              : ownershipFilter === "not-owned"
+                ? "Filter missing cards..."
+                : "Filter all cards..."
+          }
           placeholderTextColor={theme.colors.placeholder}
           style={styles.input}
           value={query}
@@ -460,16 +574,18 @@ export default function CollectionScreen() {
         <AppPanel style={styles.filterPanel}>
           <View style={styles.ownershipSwitch}>
             {[
-              { label: 'OWNED', value: 'owned' },
-              { label: 'ALL', value: 'all' },
-              { label: 'NOT OWNED', value: 'not-owned' },
+              { label: "OWNED", value: "owned" },
+              { label: "ALL", value: "all" },
+              { label: "NOT OWNED", value: "not-owned" },
             ].map((option) => {
               const isActive = ownershipFilter === option.value;
 
               return (
                 <Pressable
                   key={option.value}
-                  onPress={() => setOwnershipFilter(option.value as OwnershipFilter)}
+                  onPress={() =>
+                    setOwnershipFilter(option.value as OwnershipFilter)
+                  }
                   style={[
                     styles.ownershipButton,
                     isActive && styles.ownershipButtonActive,
@@ -488,11 +604,36 @@ export default function CollectionScreen() {
             })}
           </View>
           <View style={styles.filterGrid}>
-            <DropdownSelect label="Set" options={setFilterOptions} value={setFilter} onChange={setSetFilter} />
-            <DropdownSelect label="Element" options={colorFilterOptions} value={colorFilter} onChange={setColorFilter} />
-            <DropdownSelect label="Rarity" options={rarityFilterOptions} value={rarityFilter} onChange={setRarityFilter} />
-            <DropdownSelect label="Printing" options={printingFilterOptions} value={printingFilter} onChange={setPrintingFilter} />
-            <DropdownSelect label="Sort" options={sortOptions} value={sortKey} onChange={setSortKey} />
+            <DropdownSelect
+              label="Set"
+              options={setFilterOptions}
+              value={setFilter}
+              onChange={setSetFilter}
+            />
+            <DropdownSelect
+              label="Element"
+              options={colorFilterOptions}
+              value={colorFilter}
+              onChange={setColorFilter}
+            />
+            <DropdownSelect
+              label="Rarity"
+              options={rarityFilterOptions}
+              value={rarityFilter}
+              onChange={setRarityFilter}
+            />
+            <DropdownSelect
+              label="Printing"
+              options={printingFilterOptions}
+              value={printingFilter}
+              onChange={setPrintingFilter}
+            />
+            <DropdownSelect
+              label="Sort"
+              options={sortOptions}
+              value={sortKey}
+              onChange={setSortKey}
+            />
             <DropdownSelect
               label="Direction"
               options={sortDirectionOptions}
@@ -502,16 +643,28 @@ export default function CollectionScreen() {
           </View>
         </AppPanel>
 
-        {isLoading ? <Text style={styles.empty}>Loading collection...</Text> : null}
-        {!isLoading && collection.length === 0 && ownershipFilter === 'owned' ? (
+        {isLoading ? (
+          <Text style={styles.empty}>Loading collection...</Text>
+        ) : null}
+        {!isLoading &&
+        collection.length === 0 &&
+        ownershipFilter === "owned" ? (
           <Text style={styles.empty}>No cards yet. Use Scan to start.</Text>
         ) : null}
-        {!isLoading && rows.length === 0 && !(collection.length === 0 && ownershipFilter === 'owned') ? (
-          <Text style={styles.empty}>No owned cards match these filters.</Text>
+        {!isLoading &&
+        rows.length === 0 &&
+        !(collection.length === 0 && ownershipFilter === "owned") ? (
+          <Text style={styles.empty}>
+            {ownershipFilter === "not-owned"
+              ? "No missing cards match these filters."
+              : ownershipFilter === "all"
+                ? "No cards match these filters."
+                : "No owned cards match these filters."}
+          </Text>
         ) : null}
 
         <View style={styles.results}>
-          {rows.map((row) => (
+          {visibleRows.map((row) => (
             <InventoryRow
               key={row.entry.cardKey}
               row={row}
@@ -520,6 +673,18 @@ export default function CollectionScreen() {
               onChangeQuantity={changeQuantity}
             />
           ))}
+
+          {visibleCount < rows.length ? (
+            <Button
+              label={`LOAD MORE (${rows.length - visibleCount})`}
+              tone="blue"
+              onPress={() => {
+                setVisibleCount((currentCount) =>
+                  Math.min(rows.length, currentCount + COLLECTION_PAGE_SIZE),
+                );
+              }}
+            />
+          ) : null}
         </View>
       </ScrollView>
       {toastMessage ? (
@@ -546,12 +711,12 @@ const styles = StyleSheet.create({
   title: {
     color: theme.colors.text,
     fontSize: 32,
-    fontWeight: '900',
-    textAlign: 'center',
+    fontWeight: "900",
+    textAlign: "center",
   },
   priceSyncPanel: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 10,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -563,12 +728,12 @@ const styles = StyleSheet.create({
   priceSyncTitle: {
     color: theme.colors.textSoft,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   priceSyncText: {
     color: theme.colors.textMuted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   priceSyncButton: {
     minWidth: 104,
@@ -583,19 +748,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.panelDeep,
     color: theme.colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   filterGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   filterPanel: {
     gap: 10,
   },
   ownershipSwitch: {
-    flexDirection: 'row',
-    overflow: 'hidden',
+    flexDirection: "row",
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: theme.colors.controlBorder,
     borderRadius: theme.radii.md,
@@ -612,8 +777,8 @@ const styles = StyleSheet.create({
   ownershipButtonText: {
     color: theme.colors.textSoft,
     fontSize: 11,
-    fontWeight: '900',
-    textAlign: 'center',
+    fontWeight: "900",
+    textAlign: "center",
   },
   ownershipButtonTextActive: {
     color: theme.colors.appBackground,
@@ -621,18 +786,18 @@ const styles = StyleSheet.create({
   empty: {
     color: theme.colors.text,
     fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontWeight: "800",
+    textAlign: "center",
   },
   results: {
     gap: 10,
   },
   toast: {
-    position: 'absolute',
+    position: "absolute",
     left: 18,
     right: 18,
     bottom: 22,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
     borderColor: theme.colors.panelBorder,
     borderRadius: theme.radii.pill,
@@ -643,7 +808,7 @@ const styles = StyleSheet.create({
   toastText: {
     color: theme.colors.text,
     fontSize: 13,
-    fontWeight: '900',
-    textAlign: 'center',
+    fontWeight: "900",
+    textAlign: "center",
   },
 });

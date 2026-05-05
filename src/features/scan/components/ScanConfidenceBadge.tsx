@@ -1,7 +1,7 @@
-import { Text, View } from 'react-native';
+import { Text, View } from "react-native";
 
-import { styles } from '../screens/scan-screen.styles';
-import type { ScanConfidence } from '../scan.types';
+import { styles } from "../screens/scan-screen.styles";
+import type { ScanConfidence } from "../scan.types";
 
 export function ScanConfidenceBadge({
   confidence,
@@ -9,19 +9,19 @@ export function ScanConfidenceBadge({
   confidence: ScanConfidence;
 }) {
   const label =
-    confidence === 'exact'
-      ? 'Exact match'
-      : confidence === 'likely'
-        ? 'Likely match'
-        : confidence === 'uncertain'
-          ? 'Needs confirmation'
-          : 'Scan failed';
+    confidence === "exact"
+      ? "Exact match"
+      : confidence === "likely"
+        ? "Likely match"
+        : confidence === "uncertain"
+          ? "Needs confirmation"
+          : "Scan failed";
   const badgeStyle =
-    confidence === 'exact'
+    confidence === "exact"
       ? styles.confidenceBadgeExact
-      : confidence === 'likely'
+      : confidence === "likely"
         ? styles.confidenceBadgeLikely
-        : confidence === 'uncertain'
+        : confidence === "uncertain"
           ? styles.confidenceBadgeUncertain
           : styles.searchBadge;
 
@@ -31,4 +31,3 @@ export function ScanConfidenceBadge({
     </View>
   );
 }
-

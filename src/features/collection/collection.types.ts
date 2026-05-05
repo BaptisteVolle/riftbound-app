@@ -1,25 +1,25 @@
-import { RiftboundCard } from '../cards/cards.types';
-import { CardmarketPriceSummary } from '../cardmarket/cardmarket.types';
+import { RiftboundCard } from "../cards/cards.types";
+import { CardmarketPriceSummary } from "../cardmarket/cardmarket.types";
 
-export type CollectionPrinting = 'normal' | 'foil';
+export type CollectionPrinting = "normal" | "foil";
 
 export type CollectionCardSnapshot = Pick<
   RiftboundCard,
-  | 'id'
-  | 'externalId'
-  | 'name'
-  | 'set'
-  | 'setCode'
-  | 'number'
-  | 'color'
-  | 'colors'
-  | 'cost'
-  | 'type'
-  | 'imageUrl'
-  | 'rarity'
-  | 'alternateArt'
-  | 'overnumbered'
-  | 'signature'
+  | "id"
+  | "externalId"
+  | "name"
+  | "set"
+  | "setCode"
+  | "number"
+  | "color"
+  | "colors"
+  | "cost"
+  | "type"
+  | "imageUrl"
+  | "rarity"
+  | "alternateArt"
+  | "overnumbered"
+  | "signature"
 >;
 
 export type CollectionEntry = {
@@ -45,9 +45,7 @@ export type CollectionTotals = {
 export type CollectionRow = {
   entry: CollectionEntry;
   price?: CardmarketPriceSummary;
-  low?: number | null;
-  avg?: number | null;
-  trend?: number | null;
+  displayPrice?: number | null;
   estimatedValue: number;
   totalQuantity: number;
 };
