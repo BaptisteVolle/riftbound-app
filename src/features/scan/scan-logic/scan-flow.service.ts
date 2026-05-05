@@ -131,9 +131,11 @@ export async function scanCardFromPhoto(
     }
 
     return decideScanResult({
-      input: ocr.input,
+      ocrInput: ocr.input,
       candidates,
-      imageMatch: imageMatches[0],
+      imageMatches,
+      rarityHint: ocr.rarityHint,
+      mode: "image-first",
     });
   }
 
