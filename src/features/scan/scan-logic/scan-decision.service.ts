@@ -14,6 +14,8 @@ import { getPreferredCandidate } from "./scan-candidates.service";
 
 const STRONG_IMAGE_SCORE = 0.8;
 const STRONG_IMAGE_MARGIN = 0.03;
+const OCR_CONFIRMED_IMAGE_SCORE = 0.7;
+const OCR_CONFIRMED_IMAGE_MARGIN = 0.015;
 const WEAK_IMAGE_MARGIN = 0.012;
 
 type LegacyScanDecisionInput = {
@@ -32,6 +34,18 @@ function isStrongImageMatch(imageMatch?: ImageMatchResult) {
 
 function hasWeakImageMargin(imageMatch?: ImageMatchResult) {
   return Boolean(imageMatch && imageMatch.margin < WEAK_IMAGE_MARGIN);
+}
+
+function isOcrConfirmedImageMatch(
+  imageMatch: ImageMatchResult | undefined,
+  input: CardScanInput,
+) {
+  return Boolean(
+    imageMatch &&
+      isExactScanMatch(imageMatch.card, input) &&
+      imageMatch.score >= OCR_CONFIRMED_IMAGE_SCORE &&
+      imageMatch.margin >= OCR_CONFIRMED_IMAGE_MARGIN,
+  );
 }
 
 function getDecisionInput(
@@ -75,11 +89,28 @@ function getCardTextContradiction(card: RiftboundCard, input: CardScanInput) {
     return "number";
   }
 
-  if (!inputSetCode && !inputNumber && !cardNameDoesNotConflict(card, input)) {
+  if (!cardNameDoesNotConflict(card, input)) {
     return "name";
   }
 
   return undefined;
+}
+
+function getNonConflictingImageMatch({
+  imageMatches,
+  input,
+  rarityHint,
+}: {
+  imageMatches: ImageMatchResult[];
+  input: CardScanInput;
+  rarityHint?: ScanDecisionInput["rarityHint"];
+}) {
+  return imageMatches.find((match) => {
+    return (
+      !getCardTextContradiction(match.card, input) &&
+      rarityHintFitsCard(match.card, rarityHint)
+    );
+  });
 }
 
 function rarityHintFitsCard(
@@ -102,11 +133,10 @@ function getOcrTieBreakerMatch({
   input: CardScanInput;
   rarityHint?: ScanDecisionInput["rarityHint"];
 }) {
-  return imageMatches.find((match) => {
-    return (
-      !getCardTextContradiction(match.card, input) &&
-      rarityHintFitsCard(match.card, rarityHint)
-    );
+  return getNonConflictingImageMatch({
+    imageMatches,
+    input,
+    rarityHint,
   });
 }
 
@@ -186,6 +216,16 @@ export function decideScanResult(
     });
   }
 
+  if (mode === "image-first" && isOcrConfirmedImageMatch(topImageMatch, input)) {
+    return buildSuccessResult({
+      card: topImageMatch!.card,
+      candidates,
+      input,
+      confidence: "exact",
+      reason: `OCR confirmed image match ${topImageMatch!.score.toFixed(3)} / margin ${topImageMatch!.margin.toFixed(3)}`,
+    });
+  }
+
   if (isStrongImageMatch(topImageMatch)) {
     const contradiction = getCardTextContradiction(topImageMatch!.card, input);
 
@@ -210,6 +250,34 @@ export function decideScanResult(
       confidence,
       reason: `Image match ${topImageMatch!.score.toFixed(3)} / margin ${topImageMatch!.margin.toFixed(3)}`,
     });
+  }
+
+  if (mode === "image-first" && topImageMatch) {
+    const nonConflictingImageMatch = getNonConflictingImageMatch({
+      imageMatches,
+      input,
+      rarityHint,
+    });
+
+    if (nonConflictingImageMatch && nonConflictingImageMatch !== topImageMatch) {
+      return buildSuccessResult({
+        card: nonConflictingImageMatch.card,
+        candidates,
+        input,
+        confidence: "uncertain",
+        reason: `OCR rejected top image match; using compatible image candidate ${nonConflictingImageMatch.score.toFixed(3)}`,
+      });
+    }
+
+    if (getCardTextContradiction(topImageMatch.card, input)) {
+      return buildSuccessResult({
+        card: exactTextCandidate ?? topImageMatch.card,
+        candidates,
+        input,
+        confidence: "uncertain",
+        reason: `OCR rejected top image match ${topImageMatch.score.toFixed(3)} / margin ${topImageMatch.margin.toFixed(3)}`,
+      });
+    }
   }
 
   if (

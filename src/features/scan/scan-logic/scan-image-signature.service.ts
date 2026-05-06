@@ -202,8 +202,8 @@ export function compareCardImageSignatures(
     dHashSimilarity,
     histogramSimilarity,
     score:
-      0.55 * rgbSimilarity +
-      0.25 * dHashSimilarity +
-      0.2 * histogramSimilarity,
+      0.9 * rgbSimilarity +
+      0.1 * dHashSimilarity +
+      0.00 * histogramSimilarity,
   };
 }

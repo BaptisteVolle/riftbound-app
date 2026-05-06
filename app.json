@@ -29,7 +29,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Allow Riftbound to use your camera to scan cards.",
+          "enableFrameProcessors": true
+        }
+      ]
     ]
   }
 }

@@ -1,10 +1,18 @@
 import type { CardScanInput, RiftboundCard } from "../../cards/cards.types";
 import type { ScanAnalysisResult, ScanAnalysisStep } from "../scan.types";
-import { SCAN_IMAGE_FIRST } from "../debug/scan-debug-flag";
+import {
+  SCAN_IMAGE_DEBUG,
+  SCAN_IMAGE_FIRST,
+  SCAN_IMAGE_MATCH_CROP_KIND,
+  SCAN_IMAGE_SIGNATURE_ONLY_DEBUG,
+  SCAN_IMAGE_SIGNATURE_TARGET_CARD_ID,
+} from "../debug/scan-debug-flag";
 import { decideScanResult } from "./scan-decision.service";
 import {
   findBestImageMatch,
+  findImageMatchDiagnostic,
   findImageMatches,
+  logTargetImageSignatureDiagnostic,
 } from "./scan-image-match.service";
 import {
   getScanCandidates,
@@ -19,6 +27,81 @@ import {
 type ScanFlowOptions = {
   onStep?: (step: ScanAnalysisStep, message: string) => void;
 };
+
+function roundImageScore(value: number) {
+  return Number(value.toFixed(4));
+}
+
+function getImageDebugSummary(match: Awaited<ReturnType<typeof findImageMatches>>[number]) {
+  return {
+    id: match.card.id,
+    name: match.card.name,
+    setCode: match.card.setCode,
+    number: match.card.number,
+    rank: match.rank,
+    score: roundImageScore(match.score),
+    margin: roundImageScore(match.margin),
+    rgbSimilarity: roundImageScore(match.rgbSimilarity),
+    dHashSimilarity: roundImageScore(match.dHashSimilarity),
+    histogramSimilarity: roundImageScore(match.histogramSimilarity),
+  };
+}
+
+async function logImageFirstOcrDiagnostic({
+  region,
+  imageMatches,
+  textCandidates,
+  input,
+}: {
+  region: Parameters<typeof findImageMatches>[0];
+  imageMatches: Awaited<ReturnType<typeof findImageMatches>>;
+  textCandidates: RiftboundCard[];
+  input: CardScanInput;
+}) {
+  if (!SCAN_IMAGE_DEBUG) {
+    return;
+  }
+
+  const exactTextCandidate = textCandidates.find((candidate) =>
+    isExactScanMatch(candidate, input),
+  );
+  const matchedImageCandidate = exactTextCandidate
+    ? imageMatches.find((match) => match.card.id === exactTextCandidate.id)
+    : undefined;
+  const exactTextDiagnostic = exactTextCandidate
+    ? await findImageMatchDiagnostic(region, exactTextCandidate)
+    : undefined;
+
+  console.log("[IMAGE DEBUG] OCR validation candidate:", {
+    input,
+    exactTextCandidate: exactTextCandidate
+      ? {
+          id: exactTextCandidate.id,
+          name: exactTextCandidate.name,
+          setCode: exactTextCandidate.setCode,
+          number: exactTextCandidate.number,
+        }
+      : undefined,
+    imageRank: matchedImageCandidate?.rank,
+    imageScore: matchedImageCandidate
+      ? roundImageScore(matchedImageCandidate.score)
+      : undefined,
+    imageMargin: matchedImageCandidate
+      ? roundImageScore(matchedImageCandidate.margin)
+      : undefined,
+    topImage: imageMatches[0] ? getImageDebugSummary(imageMatches[0]) : undefined,
+    exactTextImageDiagnostic: exactTextDiagnostic
+      ? {
+          rank: exactTextDiagnostic.rank,
+          totalCompared: exactTextDiagnostic.totalCompared,
+          match: exactTextDiagnostic.match
+            ? getImageDebugSummary(exactTextDiagnostic.match)
+            : undefined,
+          betterMatches: exactTextDiagnostic.betterMatches.map(getImageDebugSummary),
+        }
+      : undefined,
+  });
+}
 
 function buildFailedResult({
   input,
@@ -95,21 +178,32 @@ export async function scanCardFromPhoto(
   photoUri: string,
   options: ScanFlowOptions = {},
 ): Promise<ScanAnalysisResult> {
+  const imageRegion = {
+    uri: photoUri,
+    cropKind: SCAN_IMAGE_MATCH_CROP_KIND,
+    source: "overlay-crop",
+    layout: "portrait",
+  } as const;
+
+  if (SCAN_IMAGE_SIGNATURE_TARGET_CARD_ID) {
+    options.onStep?.("validating-image", "Checking target image signature...");
+    await logTargetImageSignatureDiagnostic(imageRegion);
+
+    if (SCAN_IMAGE_SIGNATURE_ONLY_DEBUG) {
+      return buildFailedResult({
+        reason:
+          "Image signature target debug completed. Check [IMAGE TARGET DEBUG] logs.",
+      });
+    }
+  }
+
   if (SCAN_IMAGE_FIRST) {
     options.onStep?.("validating-image", "Checking image...");
 
-    const imageMatches = await findImageMatches(
-      {
-        uri: photoUri,
-        cropKind: "artwork",
-        source: "overlay-crop",
-        layout: "portrait",
-      },
-      {
+    const imageMatches = await findImageMatches(imageRegion, {
         mode: "full-index",
-        topN: 10,
-      },
-    );
+        topN: SCAN_IMAGE_DEBUG ? 100 : 10,
+      });
 
     options.onStep?.("reading-text", "Checking text...");
 
@@ -117,6 +211,14 @@ export async function scanCardFromPhoto(
     const textCandidates = hasAnyScanInput(ocr.input)
       ? getScanCandidates(ocr.input)
       : [];
+
+    await logImageFirstOcrDiagnostic({
+      region: imageRegion,
+      imageMatches,
+      textCandidates,
+      input: ocr.input,
+    });
+
     const candidates = mergeCardCandidates([
       ...imageMatches.map((match) => match.card),
       ...textCandidates,

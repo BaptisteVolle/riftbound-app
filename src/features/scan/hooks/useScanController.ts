@@ -1,8 +1,9 @@
-import type { CameraView } from "expo-camera";
 import { useState } from "react";
 import type { RefObject } from "react";
 import type { LayoutRectangle } from "react-native";
 
+import type { ScanCameraHandle } from "../camera/scan-camera.types";
+import { SCAN_AUTO_CAPTURE } from "../debug/scan-debug-flag";
 import {
   buildCardmarketSearchUrl,
   buildCardmarketUrlForCard,
@@ -27,6 +28,7 @@ import { useScanCapture } from "./useScanCapture";
 import { useScanCardmarketActions } from "./useScanCardmarketActions";
 import { useScanCollectionActions } from "./useScanCollectionActions";
 import { useScanRunner } from "./useScanRunner";
+import { useStableCardAutoCapture } from "./useStableCardAutoCapture";
 
 type CameraPermissionState = {
   granted: boolean;
@@ -39,7 +41,7 @@ export function useScanController({
   scannerFrameLayout,
 }: {
   cameraLayout: LayoutRectangle | undefined;
-  cameraRef: RefObject<CameraView | null>;
+  cameraRef: RefObject<ScanCameraHandle | null>;
   permission: CameraPermissionState;
   scannerFrameLayout: LayoutRectangle | undefined;
 }) {
@@ -301,6 +303,16 @@ export function useScanController({
     setStatusMessage,
   });
 
+  const autoCapture = useStableCardAutoCapture({
+    enabled:
+      SCAN_AUTO_CAPTURE &&
+      permission?.granted === true &&
+      isCameraReady &&
+      viewMode === "capture",
+    isBusy,
+    onCapture: scanCapture.handleCapturePhoto,
+  });
+
   const collectionActions = useScanCollectionActions({
     activePrinting,
     canAddToCollection,
@@ -347,6 +359,8 @@ export function useScanController({
       displayedTitle,
       isBusy,
       isCameraReady,
+      isAutoCaptureCoolingDown: autoCapture.status.isCoolingDown,
+      autoCaptureStableFrames: autoCapture.status.stableFrames,
       isCheckingScan,
       isEditPanelOpen,
       isFoilLocked,
@@ -376,10 +390,14 @@ export function useScanController({
       handleCameraError: scanCapture.handleCameraError,
       handleCameraReady: scanCapture.handleCameraReady,
       handleCapturePhoto: scanCapture.handleCapturePhoto,
+      handleDetectedCardFrame: autoCapture.handleDetectedCardFrame,
       handleCheckFields: scanRunner.handleCheckFields,
       handleConfirmResult: cardmarketActions.handleConfirmResult,
       handleEditedFields,
-      handleRetakePhoto,
+      handleRetakePhoto: () => {
+        autoCapture.resetAutoCapture();
+        handleRetakePhoto();
+      },
       handleRetryOcr: () => scanRunner.handleRetryOcr(capturedPhotoUri),
       handleSeePrice: cardmarketActions.handleSeePrice,
       openEditPanel: () => setIsEditPanelOpen(true),

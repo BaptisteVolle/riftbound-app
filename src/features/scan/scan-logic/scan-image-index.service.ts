@@ -12,7 +12,7 @@ export type IndexedCardImageEntry = {
   entry: CardImageIndexEntry;
 };
 
-type CardImageIndexStats = {
+export type CardImageIndexStats = {
   totalEntries: number;
   supportedEntries: number;
   indexedCards: number;

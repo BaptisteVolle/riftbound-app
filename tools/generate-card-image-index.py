@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
+import argparse
 import ast
 import hashlib
 import json
 import re
+import ssl
 import sys
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -74,7 +77,11 @@ def get_layout(card):
 
 
 def get_crop_kind(card):
-    return "full-card" if get_layout(card) == "landscape" else "artwork"
+    # Full-card is the primary matching region for V1: it keeps the artwork,
+    # frame, name line, set/number zone, and variant treatment in the visual
+    # signature. Battlefields already need full-card because their useful
+    # visual signal is landscape-wide.
+    return "full-card"
 
 
 def extract_candidates_source():
@@ -152,8 +159,22 @@ def download_image(url):
 
     request = Request(url, headers={"User-Agent": "riftbound-app-card-image-index/1.0"})
 
-    with urlopen(request, timeout=30) as response:
-        cache_path.write_bytes(response.read())
+    try:
+        with urlopen(request, timeout=30) as response:
+            cache_path.write_bytes(response.read())
+    except (ssl.SSLCertVerificationError, URLError) as error:
+        if "CERTIFICATE_VERIFY_FAILED" not in str(error):
+            raise
+
+        # macOS Python installs can lack a configured CA bundle. This generator
+        # only downloads public card images into a local cache, so fall back here
+        # instead of making every contributor repair their Python install first.
+        with urlopen(
+            request,
+            timeout=30,
+            context=ssl._create_unverified_context(),
+        ) as response:
+            cache_path.write_bytes(response.read())
 
     return cache_path
 
@@ -272,26 +293,75 @@ export const CARD_IMAGE_INDEX: CardImageIndexEntry[] = [
 """
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Generate the offline Riftbound card image signature index."
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Generate only the first N image-backed candidates. Useful for compatibility checks.",
+    )
+    parser.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        help="Only generate cards matching a Riftbound id, local card id, or normalized name fragment. May be passed more than once.",
+    )
+    return parser.parse_args()
+
+
+def candidate_matches_filters(card, filters):
+    if not filters:
+        return True
+
+    haystack = " ".join(
+        [
+            str(card.get("riftboundId") or ""),
+            get_local_card_id(card),
+            normalize_text(card.get("name", "")),
+            str(card.get("setCode") or ""),
+            normalize_collector_number(card.get("number", "")),
+        ]
+    ).lower()
+
+    return any(normalize_text(value).replace(" ", "-") in haystack for value in filters)
+
+
+def get_generation_candidates(candidates, args):
+    filtered_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate.get("imageUrl") and candidate_matches_filters(candidate, args.only)
+    ]
+
+    if args.limit > 0:
+        return filtered_candidates[: args.limit]
+
+    return filtered_candidates
+
+
 def main():
+    args = parse_args()
     require_pillow()
 
     candidates = load_candidates()
+    generation_candidates = get_generation_candidates(candidates, args)
     entries = []
     errors = []
-    skipped = []
+    skipped = [
+        {
+            "riftboundId": card.get("riftboundId"),
+            "name": card.get("name"),
+            "reason": "missing imageUrl",
+        }
+        for card in candidates
+        if not card.get("imageUrl")
+    ]
 
-    for card in candidates:
+    for card in generation_candidates:
         image_url = card.get("imageUrl")
-
-        if not image_url:
-            skipped.append(
-                {
-                    "riftboundId": card.get("riftboundId"),
-                    "name": card.get("name"),
-                    "reason": "missing imageUrl",
-                }
-            )
-            continue
 
         try:
             crop_kind = get_crop_kind(card)
@@ -335,6 +405,9 @@ def main():
                 "source": str(SOURCE_PATH.relative_to(ROOT)),
                 "output": str(OUTPUT_PATH.relative_to(ROOT)),
                 "totalCandidates": len(candidates),
+                "generationCandidates": len(generation_candidates),
+                "limit": args.limit,
+                "only": args.only,
                 "indexed": len(entries),
                 "skipped": skipped,
                 "errors": errors,
@@ -346,12 +419,19 @@ def main():
                     layout: sum(1 for entry in entries if entry["layout"] == layout)
                     for layout in ["portrait", "landscape"]
                 },
+                "countByCropKind": {
+                    crop_kind: sum(1 for entry in entries if entry["cropKind"] == crop_kind)
+                    for crop_kind in ["artwork", "full-card"]
+                },
             },
             indent=2,
         )
     )
 
-    print(f"Wrote {len(entries)} card image index entries to {OUTPUT_PATH}.")
+    print(
+        f"Wrote {len(entries)} card image index entries "
+        f"from {len(generation_candidates)} generation candidates to {OUTPUT_PATH}."
+    )
     print(f"Wrote report to {REPORT_PATH}.")
 
     if errors:

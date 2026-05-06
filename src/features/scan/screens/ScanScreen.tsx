@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { useCameraPermissions } from "expo-camera";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +11,8 @@ import {
 
 import { Button } from "../../../components/Button";
 import { ScannerOverlay } from "../../../components/ScannerOverlay";
+import { ScanCameraPreview } from "../camera/ScanCameraPreview";
+import type { ScanCameraHandle } from "../camera/scan-camera.types";
 import { ScanCandidateStrip } from "../components/ScanCandidateStrip";
 import { ScanCaptureView } from "../components/ScanCaptureView";
 import { ScanFailedView } from "../components/ScanFailedView";
@@ -22,7 +24,7 @@ import { styles } from "./scan-screen.styles";
 import { ScanDebugImages } from "../debug/ScanDebugImages";
 
 export function ScanScreen() {
-  const cameraRef = useRef<CameraView>(null);
+  const cameraRef = useRef<ScanCameraHandle>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraLayout, setCameraLayout] = useState<LayoutRectangle>();
   const [scannerFrameLayout, setScannerFrameLayout] =
@@ -182,15 +184,16 @@ export function ScanScreen() {
       style={styles.container}
     >
       {scan.state.viewMode === "capture" ? (
-        <CameraView
+        <ScanCameraPreview
           ref={cameraRef}
           active
-          facing="back"
+          onCameraError={scan.actions.handleCameraError}
           onCameraReady={scan.actions.handleCameraReady}
+          onDetectedCardFrame={scan.actions.handleDetectedCardFrame}
           onLayout={(event) => {
             setCameraLayout(event.nativeEvent.layout);
           }}
-          onMountError={scan.actions.handleCameraError}
+          shouldAutoDetect={!scan.state.isBusy}
           style={styles.camera}
         />
       ) : null}

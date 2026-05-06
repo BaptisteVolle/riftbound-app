@@ -1,7 +1,7 @@
-import type { CameraView } from "expo-camera";
 import type { RefObject } from "react";
 import type { LayoutRectangle } from "react-native";
 
+import type { ScanCameraHandle } from "../camera/scan-camera.types";
 import { SCAN_IMAGE_DEBUG } from "../debug/scan-debug-flag";
 import {
   cropPhotoToScannerFrame,
@@ -37,7 +37,7 @@ export function useScanCapture({
   setStatusMessage,
 }: {
   cameraLayout: LayoutRectangle | undefined;
-  cameraRef: RefObject<CameraView | null>;
+  cameraRef: RefObject<ScanCameraHandle | null>;
   isCameraReady: boolean;
   onCaptureFailed: (reason: string) => void;
   onCaptureStart: () => void;
@@ -66,10 +66,7 @@ export function useScanCapture({
     onCaptureStart();
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.65,
-        skipProcessing: false,
-      });
+      const photo = await cameraRef.current.takeScanPhoto();
 
       if (!photo?.uri) {
         onCaptureFailed("Could not capture a photo. Try again.");

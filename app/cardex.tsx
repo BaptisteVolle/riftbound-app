@@ -31,7 +31,6 @@ export default function CardexScreen() {
 
   return (
     <FlatList
-      initialNumToRender={12}
       maxToRenderPerBatch={12}
       windowSize={7}
       removeClippedSubviews
